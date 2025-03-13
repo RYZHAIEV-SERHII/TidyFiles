@@ -47,7 +47,7 @@ Downloads/
 ```
 
 ## Logs
-TidyFiles generates a log file named ```organizer.log``` to record details of all operations performed.
+TidyFiles generates a log file named ```TidyFiles.log``` to record details of all operations performed.
 
 ## 🛠️ Contributing
 We welcome contributions! Check out the [CONTRIBUTING](CONTRIBUTING.md) file for guidelines on how to get involved.
