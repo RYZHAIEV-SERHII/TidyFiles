@@ -26,7 +26,10 @@ def get_folder_path(
 
 
 def create_plans(
-    source_dir: Path, cleaning_plan: dict[Path, list[str]], unrecognized_file: Path
+    source_dir: Path,
+    cleaning_plan: dict[Path, list[str]],
+    unrecognized_file: Path,
+    **kwargs,
 ) -> tuple[list[tuple[Path, Path]], list[Path]]:
     """Generate file transfer and deletion plans.
 
@@ -38,6 +41,7 @@ def create_plans(
         source_dir (Path): The source directory to scan.
         cleaning_plan (dict[Path, list[str]]): The cleaning plan.
         unrecognized_file (Path): The folder to move files to that are not found in the cleaning plan.
+        **kwargs: Additional keyword arguments. Used just for simplifying settings passing.
 
     Returns:
         tuple[list[tuple[Path, Path]], list[Path]]: The transfer plan and the deletion plan.

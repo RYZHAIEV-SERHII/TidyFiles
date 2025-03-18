@@ -26,7 +26,7 @@ def get_logger(
         log_console_level (str): Logging level for console. Defaults to WARNING.
         log_file_level (str): Logging level for file. Defaults to DEBUG.
         log_file_mode (str): Mode for logging to file. Defaults to w.
-        **kwargs: Additional args for logger.
+        **kwargs: Additional args for logger. Used just for simplifying settings passing.
 
     Returns:
         Optional[logger]: The logger instance. If not successful, None is returned.
