@@ -16,7 +16,7 @@ DEFAULT_CLEANING_PLAN = {
 DEFAULT_SETTINGS = {
     "unrecognized_file_name": "other",
     "log_console_output_status": True,
-    "log_console_level": "INFO",
+    "log_console_level": "WARNING",
     "log_file_output_status": True,
     "log_file_level": "DEBUG",
     "log_file_name": "tidyfiles.log",
@@ -82,7 +82,7 @@ def get_settings(
     unrecognized_file_name: str = "other",
     log_console_output_status: bool = True,
     log_file_output_status: bool = True,
-    log_console_level: str = "INFO",
+    log_console_level: str = "WARNING",
     log_file_level: str = "DEBUG",
     log_file_name: str = "tidyfiles.log",
     log_folder_name: str | None = None,
@@ -117,8 +117,11 @@ def get_settings(
         "settings_folder_name": settings_folder_name,
         "excludes": excludes if excludes else [],
     }
-    # Get settings from CLI
-    cli_settings = {}
+
+    # Get settings from CLI - collect all non-None values
+    cli_settings = {
+        key: value for key, value in default_settings.items() if value is not None
+    }
 
     # Get settings from the settings file
     # (a path to the settings file to look for in the settings file - a maven)
