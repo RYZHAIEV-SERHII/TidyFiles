@@ -2,6 +2,10 @@ import shutil
 from pathlib import Path
 
 import loguru
+from rich.console import Console
+from rich.panel import Panel
+
+console = Console()
 
 
 def get_folder_path(
@@ -86,6 +90,10 @@ def transfer_files(
             the total number of files in the transfer plan.
     """
     num_transferred_files = 0
+    console.print(
+        "\n[bold cyan]=== Starting File Transfer Operations ===[/bold cyan]\n"
+    )
+
     for source, destination in transfer_plan:
         copy_number = 1
         while destination.exists():
@@ -93,16 +101,44 @@ def transfer_files(
                 f"{destination.stem}_{copy_number}{destination.suffix}"
             )
             copy_number += 1
+
         if dry_run:
-            logger.info(f"[DRY-RUN] Would transfer {source} to {destination}")
+            console.print(
+                f"[yellow]MOVE_FILE [DRY-RUN] | FROM: {source} | TO: {destination}[/yellow]"
+            )
+            logger.info(f"MOVE_FILE [DRY-RUN] | FROM: {source} | TO: {destination}")
         else:
             try:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 source.replace(destination)
-                logger.info(f"Transferred {source} to {destination}")
+                console.print(
+                    f"[green]MOVE_FILE [SUCCESS] | FROM: {source} | TO: {destination}[/green]"
+                )
+                logger.info(f"MOVE_FILE [SUCCESS] | FROM: {source} | TO: {destination}")
                 num_transferred_files += 1
             except Exception as e:
-                logger.error(f"Error transferring {source} to {destination}: {e}")
+                error_msg = (
+                    "MOVE_FILE [FAILED] | "
+                    f"FROM: {source} | "
+                    f"TO: {destination} | "
+                    f"ERROR: {str(e)}"
+                )
+                console.print(f"[red]{error_msg}[/red]")
+                logger.error(error_msg)
+
+    summary = (
+        "\n[bold cyan]=== File Transfer Summary ===[/bold cyan]\n"
+        f"Total files processed: {len(transfer_plan)}\n"
+        f"Successfully moved: [green]{num_transferred_files}[/green]\n"
+        f"Failed: [red]{len(transfer_plan) - num_transferred_files}[/red]"
+    )
+    console.print(Panel(summary))
+    logger.info(
+        "=== File Transfer Summary ===\n"
+        f"Total files processed: {len(transfer_plan)}\n"
+        f"Successfully moved: {num_transferred_files}\n"
+        f"Failed: {len(transfer_plan) - num_transferred_files}"
+    )
     return num_transferred_files, len(transfer_plan)
 
 
@@ -122,15 +158,53 @@ def delete_dirs(
         tuple[int, int]: A tuple containing the number of directories deleted and
             the total number of directories in the delete plan.
     """
+    deleted_paths = set()
     num_deleted_directories = 0
+    console.print(
+        "\n[bold cyan]=== Starting Directory Cleanup Operations ===[/bold cyan]\n"
+    )
+
     for directory in delete_plan:
+        if any(directory.is_relative_to(deleted) for deleted in deleted_paths):
+            skip_msg = (
+                "DELETE_DIR [SKIPPED] | "
+                f"PATH: {directory} | "
+                "REASON: Already deleted with parent directory"
+            )
+            console.print(f"[yellow]{skip_msg}[/yellow]")
+            logger.info(skip_msg)
+            num_deleted_directories += 1
+            continue
+
         if dry_run:
-            logger.info(f"[DRY-RUN] Would delete {directory}")
+            console.print(f"[yellow]DELETE_DIR [DRY-RUN] | PATH: {directory}[/yellow]")
+            logger.info(f"DELETE_DIR [DRY-RUN] | PATH: {directory}")
         else:
             try:
-                shutil.rmtree(directory)
-                logger.info(f"Deleted {directory}")
-                num_deleted_directories += 1
+                if directory.exists():
+                    shutil.rmtree(directory)
+                    deleted_paths.add(directory)
+                    console.print(
+                        f"[green]DELETE_DIR [SUCCESS] | PATH: {directory}[/green]"
+                    )
+                    logger.info(f"DELETE_DIR [SUCCESS] | PATH: {directory}")
+                    num_deleted_directories += 1
             except Exception as e:
-                logger.error(f"Error deleting {directory}: {e}")
+                error_msg = f"DELETE_DIR [FAILED] | PATH: {directory} | ERROR: {str(e)}"
+                console.print(f"[red]{error_msg}[/red]")
+                logger.error(error_msg)
+
+    summary = (
+        "\n[bold cyan]=== Directory Cleanup Summary ===[/bold cyan]\n"
+        f"Total directories processed: {len(delete_plan)}\n"
+        f"Successfully deleted: [green]{num_deleted_directories}[/green]\n"
+        f"Failed: [red]{len(delete_plan) - num_deleted_directories}[/red]"
+    )
+    console.print(Panel(summary))
+    logger.info(
+        "=== Directory Cleanup Summary ===\n"
+        f"Total directories processed: {len(delete_plan)}\n"
+        f"Successfully deleted: {num_deleted_directories}\n"
+        f"Failed: {len(delete_plan) - num_deleted_directories}"
+    )
     return num_deleted_directories, len(delete_plan)

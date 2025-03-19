@@ -16,7 +16,7 @@ DEFAULT_CLEANING_PLAN = {
 DEFAULT_SETTINGS = {
     "unrecognized_file_name": "other",
     "log_console_output_status": True,
-    "log_console_level": "WARNING",
+    "log_console_level": "INFO",
     "log_file_output_status": True,
     "log_file_level": "DEBUG",
     "log_file_name": "tidyfiles.log",
@@ -82,7 +82,7 @@ def get_settings(
     unrecognized_file_name: str = "other",
     log_console_output_status: bool = True,
     log_file_output_status: bool = True,
-    log_console_level: str = "WARNING",
+    log_console_level: str = "INFO",
     log_file_level: str = "DEBUG",
     log_file_name: str = "tidyfiles.log",
     log_folder_name: str | None = None,
