@@ -3,10 +3,13 @@
 ![TidyFiles Logo](https://i.imgur.com/VkDL4QU.jpeg)
 
 [![PyPI version](https://badge.fury.io/py/tidyfiles.svg)](https://badge.fury.io/py/tidyfiles)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/RYZHAIEV-SERHII/TidyFiles)](https://github.com/RYZHAIEV-SERHII/TidyFiles/releases)
+[![Python 3.10-3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![codecov](https://codecov.io/gh/RYZHAIEV-SERHII/TidyFiles/branch/main/graph/badge.svg)](https://codecov.io/gh/RYZHAIEV-SERHII/TidyFiles)
 [![Tests](https://github.com/RYZHAIEV-SERHII/TidyFiles/workflows/tests/badge.svg)](https://github.com/RYZHAIEV-SERHII/TidyFiles/actions)
+[![GitHub last commit](https://img.shields.io/github/last-commit/RYZHAIEV-SERHII/TidyFiles)](https://github.com/RYZHAIEV-SERHII/TidyFiles/commits)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **TidyFiles** is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder! It intelligently organizes files by type and keeps logs of all the sorting magic.
 
@@ -19,7 +22,7 @@
 - **Safe Operations**: Maintains file integrity during organization
 
 ## 🔧 Tech Stack
-- **Python 3.13+**: Modern Python features for robust performance
+- **Python >=3.10**: Modern Python features for robust performance
 - **Typer**: For elegant CLI interface
 - **Rich**: Beautiful terminal formatting and output
 - **Loguru**: Advanced logging capabilities
@@ -83,13 +86,13 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 🎯 Roadmap
 
-### Coming Soon (v0.2.0)
+### Coming Soon (v0.7.0)
 - [ ] `--lang` flag for multi-language support
 - [ ] `--undo` operation to reverse recent changes
 - [ ] Custom file category definitions
 - [ ] Subdirectory organization support
 
-### Future Plans (v0.3.0+)
+### Future Plans (v0.8.0+)
 - [ ] File deduplication detection
 - [ ] Bulk rename operations
 - [ ] File content-based organization
@@ -102,8 +105,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 📊 Stats
 - **First Release**: March 2025
-- **Latest Version**: 0.1.0
-- **Python Compatibility**: 3.13+
+- **Latest Version**: [![PyPI version](https://badge.fury.io/py/tidyfiles.svg)](https://badge.fury.io/py/tidyfiles)
+- **Python Compatibility**: [![Python 3.10-3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 - **Platform Support**: Windows, macOS, Linux
 
 #### Created with ❤️ by Serhii Ryzhaiev
