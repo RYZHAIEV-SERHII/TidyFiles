@@ -18,3 +18,10 @@ repos:
     # Run the formatter.
     - id: ruff-format
       name: Ruff formatter
+- repo: local
+  hooks:
+    - id: validate-commit-message
+      name: Validate Commit Message
+      entry: .hooks/commit-msg
+      language: script
+      stages: [commit-msg]

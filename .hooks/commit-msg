@@ -1,0 +1,73 @@
+#!/bin/sh
+commit_msg=$(cat "$1")
+
+# Check if the commit message is empty
+if [ -z "$commit_msg" ]; then
+  echo "Error: Commit message cannot be empty."
+  exit 1
+fi
+
+# Check if the commit message follows the Angular conventional format
+if ! echo "$commit_msg" | grep -qE "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.+\))?: .+"; then
+  echo "Error: Commit message must follow Angular conventional format for semantic versioning."
+  echo ""
+  echo "Format: <type>(<scope>): <description>"
+  echo ""
+  echo "Version Impact | Type | Description"
+  echo "─────────────────────────────────────────────────────────────────────────"
+  echo "MAJOR (1.x.x) | Any type with breaking change marker:"
+  echo "             | - Using '!' before colon: feat(api)!: remove users endpoint"
+  echo "             | - Using 'BREAKING CHANGE: ' in commit body"
+  echo "─────────────────────────────────────────────────────────────────────────"
+  echo "MINOR (x.1.x) | feat:     New features or significant improvements"
+  echo "             |           Example: feat(auth): add OAuth2 support"
+  echo "─────────────────────────────────────────────────────────────────────────"
+  echo "PATCH (x.x.1) | fix:      Bug fixes and small patches"
+  echo "             |           Example: fix(login): handle invalid credentials"
+  echo "             | perf:     Performance improvements"
+  echo "             |           Example: perf(api): optimize response time"
+  echo "─────────────────────────────────────────────────────────────────────────"
+  echo "NO VERSION   | docs:     Documentation updates only"
+  echo "CHANGE       | style:    Code style/formatting changes"
+  echo "             | refactor: Code restructuring, no behavior changes"
+  echo "             | test:     Adding or updating tests"
+  echo "             | build:    Build system or dependency changes"
+  echo "             | ci:       CI/CD pipeline changes"
+  echo "             | chore:    Maintenance tasks, no code changes"
+  echo "             | revert:   Reverting previous commits"
+  echo ""
+  echo "Examples with version impact:"
+  echo "─────────────────────────────────────────────────────────────────────────"
+  echo "MAJOR (1.x.x) | feat(api)!: remove deprecated v1 endpoints"
+  echo "             | feat: major authentication redesign"
+  echo "             | BREAKING CHANGE: authentication now requires API key"
+  echo ""
+  echo "MINOR (x.1.x) | feat(users): add user profile management"
+  echo "             | feat: implement search functionality"
+  echo ""
+  echo "PATCH (x.x.1) | fix(validation): handle null values"
+  echo "             | fix: correct email regex pattern"
+  echo ""
+  echo "NO CHANGE     | docs: update API documentation"
+  echo "             | style: format code according to new standards"
+  echo "             | test: add integration tests for auth module"
+  exit 1
+fi
+
+# Check for breaking change marker in header (MAJOR version bump)
+if echo "$commit_msg" | grep -qE "^.+!: "; then
+  # Breaking change detected in header - will trigger MAJOR version bump (1.x.x)
+  exit 0
+fi
+
+# Check for breaking change marker in body (MAJOR version bump)
+if echo "$commit_msg" | grep -qE "BREAKING CHANGE: "; then
+  # Breaking change detected in body - will trigger MAJOR version bump (1.x.x)
+  exit 0
+fi
+
+# If we reach here, the commit message is valid and version impact is determined by type:
+# - feat: MINOR version bump (x.1.x)
+# - fix: PATCH version bump (x.x.1)
+# - others: no version bump
+exit 0
