@@ -3,7 +3,11 @@ name = "tidyfiles"
 version = "0.1.0"
 description = "TidyFiles is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder! It intelligently organizes files by type and keep logs of all the sorting magic."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Serhii Ryzhaiev", email = "serhii.ryzhaiev@gmail.com" }
+]
 dependencies = [
     "cfgv==3.4.0",
     "click==8.1.8",
@@ -22,6 +26,8 @@ dependencies = [
     "pre-commit==4.1.0",
     "pygments==2.19.1",
     "pytest==8.3.5",
+    "pytest-cov>=6.0.0",
+    "python-semantic-release>=9.21.0",
     "pyyaml==6.0.2",
     "rich==13.9.4",
     "ruff==0.11.0",
@@ -30,4 +36,89 @@ dependencies = [
     "typer==0.15.2",
     "typing-extensions==4.12.2",
     "virtualenv==20.29.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/RYZHAIEV-SERHII/TidyFiles"
+Documentation = "https://github.com/RYZHAIEV-SERHII/TidyFiles#readme"
+Repository = "https://github.com/RYZHAIEV-SERHII/TidyFiles.git"
+Issues = "https://github.com/RYZHAIEV-SERHII/TidyFiles/issues"
+
+[project.scripts]
+tidyfiles = "main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tidyfiles"]
+
+[tool.hatch.version]
+path = "tidyfiles/__init__.py"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers --cov=tidyfiles --cov-report=term-missing --cov-report=xml --cov-report=html"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+source = ["tidyfiles"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError",
+]
+ignore_errors = true
+omit = [
+    "tests/*",
+    "setup.py",
+]
+
+[tool.semantic_release]
+version_variable = [
+    "tidyfiles/__init__.py:__version__",
+    "pyproject.toml:version"
+]
+branch = "main"
+upload_to_pypi = true
+build_command = "uv build"
+dist_path = "dist/"
+remove_dist = true
+major_on_zero = false
+tag_format = "v{version}"
+commit_message = "chore(release): bump version to {version}"
+changelog_file = "CHANGELOG.md"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "feat",
+    "fix",
+    "perf",
+    "refactor",
+    "style",
+    "docs",
+    "test",
+    "ci",
+    "build",
+    "chore"
+]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.changelog]
+changelog_sections = [
+    ["feat", "Features"],
+    ["fix", "Bug Fixes"],
+    ["perf", "Performance"],
+    ["refactor", "Code Refactoring"],
+    ["docs", "Documentation"],
 ]
