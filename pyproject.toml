@@ -94,7 +94,7 @@ build_command = "uv build"
 dist_path = "dist/"
 remove_dist = true
 major_on_zero = false
-tag_format = "v{version}"
+tag_format = "{version}"
 commit_message = "chore(release): bump version to {version}"
 changelog_file = "CHANGELOG.md"
 
