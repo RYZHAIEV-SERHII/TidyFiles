@@ -79,16 +79,16 @@ def get_settings(
     source_dir: str,
     destination_dir: str | None = None,
     cleaning_plan: dict[str, list[str]] | None = None,
-    unrecognized_file_name: str = "other",
-    log_console_output_status: bool = True,
-    log_file_output_status: bool = True,
-    log_console_level: str = "WARNING",
-    log_file_level: str = "DEBUG",
-    log_file_name: str = "tidyfiles.log",
-    log_folder_name: str | None = None,
-    log_file_mode: str = "w",
-    settings_file_name: str = "settings.toml",
-    settings_folder_name: str | None = None,
+    unrecognized_file_name: str = DEFAULT_SETTINGS["unrecognized_file_name"],
+    log_console_output_status: bool = DEFAULT_SETTINGS["log_console_output_status"],
+    log_file_output_status: bool = DEFAULT_SETTINGS["log_file_output_status"],
+    log_console_level: str = DEFAULT_SETTINGS["log_console_level"],
+    log_file_level: str = DEFAULT_SETTINGS["log_file_level"],
+    log_file_name: str = DEFAULT_SETTINGS["log_file_name"],
+    log_folder_name: str = DEFAULT_SETTINGS["log_folder_name"],
+    log_file_mode: str = DEFAULT_SETTINGS["log_file_mode"],
+    settings_file_name: str = DEFAULT_SETTINGS["settings_file_name"],
+    settings_folder_name: str = DEFAULT_SETTINGS["settings_folder_name"],
     excludes: list[str] | None = None,
 ) -> dict:
     """
@@ -101,6 +101,29 @@ def get_settings(
 
     After combining the primary settings, they are processed and returned as a dictionary.
     """
+    if not source_dir:
+        raise ValueError("Source directory must be specified")
+
+    # Add source directory validation
+    source_path = Path(source_dir)
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source directory does not exist: {source_dir}")
+    if not source_path.is_dir():
+        raise ValueError(f"Source path is not a directory: {source_dir}")
+
+    # Add destination directory validation
+    if destination_dir:
+        dest_path = Path(destination_dir)
+        if dest_path.exists() and not dest_path.is_dir():
+            raise ValueError(f"Destination path is not a directory: {destination_dir}")
+        try:
+            # Try to create the destination directory if it doesn't exist
+            dest_path.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as e:
+            raise ValueError(
+                f"Cannot create destination directory {destination_dir}: {str(e)}"
+            )
+
     default_settings = {
         "source_dir": source_dir,
         "destination_dir": destination_dir,

@@ -36,7 +36,7 @@ def get_logger(
 
     if log_file_output_status or log_console_output_status:
         # configure logger
-        logger.remove(0)  # remove default handler
+        logger.remove()  # remove default handlers
 
         console_log_format = (
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
