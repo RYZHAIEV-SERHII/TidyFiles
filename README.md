@@ -5,11 +5,13 @@
 [![PyPI version](https://badge.fury.io/py/tidyfiles.svg)](https://badge.fury.io/py/tidyfiles)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/RYZHAIEV-SERHII/TidyFiles)](https://github.com/RYZHAIEV-SERHII/TidyFiles/releases)
 [![Python 3.10-3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![codecov](https://codecov.io/gh/RYZHAIEV-SERHII/TidyFiles/branch/main/graph/badge.svg)](https://codecov.io/gh/RYZHAIEV-SERHII/TidyFiles)
-[![Tests](https://github.com/RYZHAIEV-SERHII/TidyFiles/workflows/tests/badge.svg)](https://github.com/RYZHAIEV-SERHII/TidyFiles/actions)
+[![Tests](https://github.com/RYZHAIEV-SERHII/TidyFiles/actions/workflows/tests.yml/badge.svg)](https://github.com/RYZHAIEV-SERHII/TidyFiles/actions)
 [![GitHub last commit](https://img.shields.io/github/last-commit/RYZHAIEV-SERHII/TidyFiles)](https://github.com/RYZHAIEV-SERHII/TidyFiles/commits)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat&logo=github)](CONTRIBUTING.md)
 
 **TidyFiles** is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder! It intelligently organizes files by type and keeps logs of all the sorting magic.
 
@@ -22,13 +24,21 @@
 - **Safe Operations**: Maintains file integrity during organization
 
 ## 🔧 Tech Stack
-- **Python >=3.10**: Modern Python features for robust performance
-- **Typer**: For elegant CLI interface
-- **Rich**: Beautiful terminal formatting and output
-- **Loguru**: Advanced logging capabilities
-- **Ruff**: For code formatting and linting
-- **Pre-commit**: Automated code quality checks
-- **PyTest**: Comprehensive test coverage
+- **Core Dependencies**
+  - Python >=3.10: Modern Python features
+  - Typer: Elegant CLI interface
+  - Rich: Beautiful terminal formatting
+  - Loguru: Advanced logging
+  - Click: CLI framework (Typer dependency)
+
+- **Development Tools**
+  - Ruff: Fast Python linter and formatter
+  - Pre-commit: Automated code quality checks
+  - Semantic Release: Automated versioning
+
+- **Testing Framework**
+  - PyTest: Comprehensive test coverage
+  - Coverage reporting: Detailed test coverage analysis
 
 ## 🚀 Getting Started
 
@@ -84,7 +94,13 @@ We welcome contributions! Check out our [Contributing Guidelines](CONTRIBUTING.m
 ## 📄 License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 🎯 Roadmap
+## 🎯 What's New & Coming Up
+
+### Latest Release (v0.6.3)
+- ✨ Implemented core file organization functionality
+- 🎨 Enhanced console UI with Rich library
+- 🐛 Fixed logging during folder operations
+- 📚 Added comprehensive documentation
 
 ### Coming Soon (v0.7.0)
 - [ ] `--lang` flag for multi-language support
@@ -102,6 +118,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [ ] File compression options
 - [ ] Organization templates/presets
 - [ ] Statistics and reports generation
+
+For full version history, see our [CHANGELOG.md](CHANGELOG.md).
 
 ## 📊 Stats
 - **First Release**: March 2025

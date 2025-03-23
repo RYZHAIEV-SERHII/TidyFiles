@@ -8,34 +8,44 @@ license = { text = "MIT" }
 authors = [
     { name = "Serhii Ryzhaiev", email = "serhii.ryzhaiev@gmail.com" }
 ]
+# Core dependencies - only what's needed to run the application
 dependencies = [
-    "cfgv==3.4.0",
-    "click==8.1.8",
-    "distlib==0.3.9",
-    "filelock==3.18.0",
-    "identify==2.6.9",
-    "iniconfig==2.0.0",
-    "loguru==0.7.3",
-    "markdown-it-py==3.0.0",
-    "mdurl==0.1.2",
-    "nodeenv==1.9.1",
-    "packaging==24.2",
-    "pip==25.0.1",
-    "platformdirs==4.3.6",
-    "pluggy==1.5.0",
-    "pre-commit==4.1.0",
-    "pygments==2.19.1",
-    "pytest==8.3.5",
-    "pytest-cov>=6.0.0",
-    "python-semantic-release>=9.21.0",
-    "pyyaml==6.0.2",
-    "rich==13.9.4",
-    "ruff==0.11.0",
-    "shellingham==1.5.4",
-    "toml==0.10.2",
-    "typer==0.15.2",
-    "typing-extensions==4.12.2",
-    "virtualenv==20.29.3",
+    "click==8.1.8",              # Required by Typer
+    "loguru==0.7.3",            # Logging
+    "rich==13.9.4",             # Terminal UI
+    "shellingham==1.5.4",       # Shell detection for CLI
+    "typer==0.15.2",           # CLI framework
+    "toml==0.10.2",            # TOML file handling
+]
+
+[project.optional-dependencies]
+# Development tools
+dev = [
+    "ruff==0.11.0",            # Python linter and formatter
+    "pre-commit==4.1.0",       # Git hooks framework
+    "cfgv==3.4.0",            # Config validation
+    "distlib==0.3.9",         # Library for packaging
+    "filelock==3.18.0",       # File locking
+    "identify==2.6.9",        # File type identification
+    "nodeenv==1.9.1",         # Node.js virtual env
+    "platformdirs==4.3.6",    # Platform directories
+    "virtualenv==20.29.3",    # Virtual environment
+    "markdown-it-py==3.0.0",  # Markdown processing
+    "mdurl==0.1.2",          # URL handling
+    "pygments==2.19.1",      # Syntax highlighting
+    "pip==25.0.1",           # Package installer
+    "python-semantic-release>=9.21.0",  # Versioning and releasing
+    "typing-extensions==4.12.2", # Type hinting support
+    "pyyaml==6.0.2",           # YAML file handling
+]
+
+# Testing tools
+test = [
+    "pytest==8.3.5",          # Testing framework
+    "pytest-cov>=6.0.0",      # Coverage reporting
+    "iniconfig==2.0.0",       # Config file parsing
+    "packaging==24.2",        # Version handling
+    "pluggy==1.5.0",         # Plugin system
 ]
 
 [project.urls]
@@ -45,7 +55,7 @@ Repository = "https://github.com/RYZHAIEV-SERHII/TidyFiles.git"
 Issues = "https://github.com/RYZHAIEV-SERHII/TidyFiles/issues"
 
 [project.scripts]
-tidyfiles = "main:app"
+tidyfiles = "tidyfiles.cli:app"
 
 [build-system]
 requires = ["hatchling"]

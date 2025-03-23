@@ -25,8 +25,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install pytest pytest-cov
-          uv pip install -e .
+          # Install core and test dependencies only
+          uv sync --extra test
 
       - name: Run tests with coverage
         run: |

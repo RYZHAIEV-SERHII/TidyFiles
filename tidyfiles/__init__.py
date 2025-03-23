@@ -2,3 +2,7 @@
 It intelligently organizes files by type and keep logs of all the sorting magic."""
 
 __version__ = "0.6.3"
+
+from tidyfiles.cli import app
+
+__all__ = ["app"]

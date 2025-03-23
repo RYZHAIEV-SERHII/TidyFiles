@@ -9,29 +9,59 @@ Here are some ways you can help improve TidyFiles:
 - Improve the documentation 📚.
 - Submit pull requests with bug fixes, code improvements, or new features 🛠️.
 
-## 💻 Setting Up the Project
-1. **Fork the repository** by clicking the **Fork** button on the top right corner of the repo page.
-2. **Clone the repository** to your local machine:
+## 💻 Development Setup
+
+1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/RYZHAIEV-SERHII/TidyFiles.git
+   git clone https://github.com/YOUR_USERNAME/TidyFiles.git
+   cd TidyFiles
    ```
-3. Navigate to the project directory:
 
+2. **Set up the development environment**:
+   ```bash
+   # Install uv if you haven't already
+   pip install uv
+
+   # Create and activate virtual environment
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+   # Install all development dependencies
+   uv sync --extras "dev,test"
+
+   # Install pre-commit hooks
+   pre-commit install
+   ```
+
+3. **Verify your setup**:
+   ```bash
+   # Run tests to ensure everything works
+   pytest
+
+   # Run ruff to check code style
+   ruff check .
+   ```
+
+## 📦 Dependency Management
+
+The project uses different dependency groups:
+- **Core**: Essential packages for running the application
+- **Dev**: Tools for development, linting, and documentation
+- **Test**: Testing frameworks and tools
+
+Common commands:
 ```bash
-cd TidyFiles
-```
+# Install only what's needed to run the application
+uv sync
 
-4. Set up a virtual environment and activate it:
+# Install development tools (including documentation)
+uv sync --extras dev
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+# Install testing tools
+uv sync --extras test
 
-5. Install the required dependencies:
-
-```bash
-pip install -r requirements.txt
+# Install everything for development
+uv sync --extras "dev,test"
 ```
 
 ## 🚦 Workflow for Contributing
