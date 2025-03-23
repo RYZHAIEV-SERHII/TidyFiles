@@ -29,13 +29,15 @@ jobs:
           uv pip install -e .
 
       - name: Run tests with coverage
-        run: uv run pytest
+        run: |
+          uv run pytest --cov=tidyfiles tests/ --cov-report=term-missing --cov-report=xml
         env:
           PYTHONPATH: .
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
