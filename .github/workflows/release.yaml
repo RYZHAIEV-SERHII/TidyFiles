@@ -50,7 +50,43 @@ jobs:
       - name: Install semantic-release
         run: pip install python-semantic-release
 
-      # Run semantic-release commands
+      # First run version to generate CHANGELOG.md
+      - name: Generate CHANGELOG
+        run: semantic-release version --no-commit
+
+      # Update README using the generated CHANGELOG
+      - name: Update README.md with latest release
+        run: |
+          # Get the version that will be released
+          VERSION=$(semantic-release version --print)
+          echo "Updating README for version: $VERSION"
+
+          # Extract latest changes from newly generated CHANGELOG
+          LATEST_CHANGES=$(awk '/^## \['$VERSION'\]/{p=1;next} /^## \[/{p=0} p' CHANGELOG.md | grep -E '^### |^- ' | sed 's/^### //' | sed 's/^- /- /')
+
+          if [ -n "$LATEST_CHANGES" ]; then
+            TMP_FILE=$(mktemp)
+            awk -v version="$VERSION" -v changes="$LATEST_CHANGES" '
+            /### Latest Release \(v[0-9]+\.[0-9]+\.[0-9]+\)/{
+              print "### Latest Release (v" version ")"
+              print changes
+              found=1
+              next
+            }
+            found && /^- /{next}
+            {print}
+            ' README.md > "$TMP_FILE"
+            mv "$TMP_FILE" README.md
+
+            # Configure git
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+
+            # Stage README changes
+            git add README.md
+          fi
+
+      # Now run the actual release
       - name: Semantic Release
         id: release  # ID to reference in outputs
         env:
@@ -143,32 +179,6 @@ jobs:
       # Install uv package manager
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-
-      # Update README with new version info
-      - name: Update README.md with latest release
-        run: |
-          LATEST_CHANGES=$(awk '/^## \['${{ needs.details.outputs.new_version }}'\]/{p=1;next} /^## \[/{p=0} p' CHANGELOG.md | grep -E '^### |^- ' | sed 's/^### //' | sed 's/^- /- /')
-          TMP_FILE=$(mktemp)
-          awk -v version="${{ needs.details.outputs.new_version }}" -v changes="$LATEST_CHANGES" '
-          /### Latest Release \(v[0-9]+\.[0-9]+\.[0-9]+\)/{
-            print "### Latest Release (v" version ")"
-            print changes
-            found=1
-            next
-          }
-          found && /^- /{next}
-          {print}
-          ' README.md > "$TMP_FILE"
-          mv "$TMP_FILE" README.md
-
-          # Configure git
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          # Add and commit changes
-          git add README.md
-          git commit -m "docs: update README.md with latest release v${{ needs.details.outputs.new_version }}"
-          git push origin main
 
       # Install only core dependencies needed for building the package
       - name: Install dependencies
