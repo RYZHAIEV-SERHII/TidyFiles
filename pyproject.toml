@@ -94,7 +94,7 @@ omit = [
 ]
 
 [tool.semantic_release]
-version_variable = [
+version_variables = [
     "tidyfiles/__init__.py:__version__",
     "pyproject.toml:version"
 ]

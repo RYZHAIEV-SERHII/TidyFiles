@@ -26,8 +26,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Define outputs that can be used by other jobs
     outputs:
-      released: ${{ steps.release.outputs.released }}
       version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       # Checkout code with full git history for semantic-release to analyze
       - uses: actions/checkout@v4
@@ -128,6 +128,8 @@ jobs:
   setup_and_build:
     needs: [details, check_pypi]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -141,21 +143,9 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      # Update version in project files
-      - name: Update version in __init__.py and pyproject.toml
-        run: |
-          # Update version in __init__.py
-          sed -i "s/__version__ = .*/__version__ = \"${{ needs.details.outputs.new_version }}\"/" tidyfiles/__init__.py
-
-          # Update version in pyproject.toml
-          sed -i "s/version = .*/version = \"${{ needs.details.outputs.new_version }}\"/" pyproject.toml
-
       # Update README with new version info
       - name: Update README.md with latest release
         run: |
-          # Pull latest changes first
-          git pull origin main --rebase
-
           LATEST_CHANGES=$(awk '/^## \['${{ needs.details.outputs.new_version }}'\]/{p=1;next} /^## \[/{p=0} p' CHANGELOG.md | grep -E '^### |^- ' | sed 's/^### //' | sed 's/^- /- /')
           TMP_FILE=$(mktemp)
           awk -v version="${{ needs.details.outputs.new_version }}" -v changes="$LATEST_CHANGES" '
@@ -177,9 +167,6 @@ jobs:
           # Add and commit changes
           git add README.md
           git commit -m "docs: update README.md with latest release v${{ needs.details.outputs.new_version }}"
-
-          # Pull and rebase again before pushing to ensure we have latest changes
-          git pull origin main --rebase
           git push origin main
 
       # Install only core dependencies needed for building the package
