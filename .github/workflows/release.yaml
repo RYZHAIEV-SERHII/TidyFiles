@@ -19,7 +19,7 @@ env:
 
 # List of jobs to run
 jobs:
-  # Job for semantic versioning
+  # Job for semantic versioning and initial release preparation
   semantic_release:
     runs-on: ubuntu-latest
     # Only run this job when pushing to main branch
@@ -42,23 +42,34 @@ jobs:
         with:
           python-version-file: "pyproject.toml"
 
-      # Install uv package manager
+      # Install uv package manager for faster dependency management
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      # Install semantic-release package
+      # Install semantic-release for version management
       - name: Install semantic-release
         run: pip install python-semantic-release
 
-      # First run version to generate CHANGELOG.md
+      # Determine the next version number without making any changes
+      - name: Get next version
+        id: get_version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(semantic-release version --print)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Next version will be: $VERSION"
+
+      # Generate CHANGELOG without committing - this creates the file we'll use for README update
       - name: Generate CHANGELOG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release version --no-commit
 
-      # Update README using the generated CHANGELOG
+      # Update README.md with the latest release information from CHANGELOG
       - name: Update README.md with latest release
         run: |
-          # Get the version that will be released
-          VERSION=$(semantic-release version --print)
+          VERSION="${{ steps.get_version.outputs.version }}"
           echo "Updating README for version: $VERSION"
 
           # Extract latest changes from newly generated CHANGELOG
@@ -66,6 +77,7 @@ jobs:
 
           if [ -n "$LATEST_CHANGES" ]; then
             TMP_FILE=$(mktemp)
+            # Update the "Latest Release" section in README
             awk -v version="$VERSION" -v changes="$LATEST_CHANGES" '
             /### Latest Release \(v[0-9]+\.[0-9]+\.[0-9]+\)/{
               print "### Latest Release (v" version ")"
@@ -78,24 +90,24 @@ jobs:
             ' README.md > "$TMP_FILE"
             mv "$TMP_FILE" README.md
 
-            # Configure git
+            # Configure git for the commit
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
 
-            # Stage README changes
+            # Stage README changes for inclusion in version bump commit
             git add README.md
           fi
 
-      # Now run the actual release
+      # Perform the actual version bump and release
       - name: Semantic Release
-        id: release  # ID to reference in outputs
+        id: release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Token for GitHub operations
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          semantic-release version  # Determines new version based on commits
-          semantic-release publish  # Creates release, tags, and updates files
+          semantic-release version  # Creates version bump commit and tag
+          semantic-release publish  # Publishes the release to GitHub
 
-  # Job to extract version details
+  # Job to extract and validate version details
   details:
     needs: semantic_release
     # Run if either a tag was pushed or semantic-release created a new version
@@ -110,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Extract version information from tag
+      # Extract version information from tag or semantic-release output
       - name: Extract tag and Details
         id: release
         run: |
@@ -127,17 +139,13 @@ jobs:
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          # Debug output
-          echo "Version is $NEW_VERSION"
-          echo "Suffix is $SUFFIX"
-          echo "Tag name is $TAG_NAME"
 
-  # Job to verify version against PyPI
+  # Job to verify the new version against PyPI
   check_pypi:
     needs: details
     runs-on: ubuntu-latest
     steps:
-      # Get latest version from PyPI
+      # Get the latest version from PyPI
       - name: Fetch information from PyPI
         run: |
           response=$(curl -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json || echo "{}")
@@ -149,7 +157,7 @@ jobs:
           echo "Latest version on PyPI: $latest_previous_version"
           echo "latest_previous_version=$latest_previous_version" >> $GITHUB_ENV
 
-      # Compare new version with PyPI version
+      # Ensure new version is greater than the PyPI version
       - name: Compare versions and exit if not newer
         run: |
           NEW_VERSION=${{ needs.details.outputs.new_version }}
@@ -157,11 +165,9 @@ jobs:
           if [ "$(printf '%s\n' "$LATEST_VERSION" "$NEW_VERSION" | sort -rV | head -n 1)" != "$NEW_VERSION" ] || [ "$NEW_VERSION" == "$LATEST_VERSION" ]; then
             echo "The new version $NEW_VERSION is not greater than the latest version $LATEST_VERSION on PyPI."
             exit 1
-          else
-            echo "The new version $NEW_VERSION is greater than the latest version $LATEST_VERSION on PyPI."
           fi
 
-  # Job to prepare and build package
+  # Job to prepare and build the package
   setup_and_build:
     needs: [details, check_pypi]
     runs-on: ubuntu-latest
@@ -176,7 +182,7 @@ jobs:
         with:
           python-version-file: "pyproject.toml"
 
-      # Install uv package manager
+      # Install uv for dependency management
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -195,7 +201,7 @@ jobs:
           name: dist
           path: dist/
 
-  # Job to publish to PyPI
+  # Job to publish the package to PyPI
   pypi_publish:
     name: Upload release to PyPI
     needs: [setup_and_build, details]
@@ -203,7 +209,7 @@ jobs:
     environment:
       name: release
     permissions:
-      id-token: write
+      id-token: write  # Required for trusted publishing
     steps:
       # Download built distributions
       - name: Download artifacts
@@ -216,7 +222,7 @@ jobs:
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-  # Job to create GitHub release
+  # Job to create GitHub release with assets
   github_release:
     name: Create GitHub Release
     needs: [setup_and_build, details]
@@ -236,7 +242,7 @@ jobs:
           name: dist
           path: dist/
 
-      # Create GitHub release with built distributions
+      # Create GitHub release and upload assets
       - name: Create GitHub Release
         id: create_release
         env:
