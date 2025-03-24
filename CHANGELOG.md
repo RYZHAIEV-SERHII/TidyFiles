@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.7 (2025-03-24)
+
+### Bug Fixes
+
+- Add 'released' output to release workflow for better tracking
+  ([`807d525`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/807d52543d04e94161e68ce6cdac4e0d18f37b77))
+
+
 ## v0.6.6 (2025-03-24)
 
 ### Bug Fixes
