@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.5 (2025-03-24)
+
+### Bug Fixes
+
+- Update release workflow to pull latest changes and rebase before pushing README updates
+  ([`ec55b86`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/ec55b866b75d8634642eb1a7080301541506bd35))
+
+
 ## v0.6.4 (2025-03-23)
 
 ### Chores
