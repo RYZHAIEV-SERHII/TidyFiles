@@ -27,6 +27,7 @@ jobs:
     # Define outputs that can be used by other jobs
     outputs:
       version: ${{ steps.release.outputs.version }}
+      released: ${{ steps.release.outputs.released }}
       tag: ${{ steps.release.outputs.tag }}
     steps:
       # Checkout code with full git history for semantic-release to analyze
