@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.6 (2025-03-24)
+
+### Bug Fixes
+
+- Update release workflow to include version tag output and adjust permissions
+  ([`888dbdb`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/888dbdb3c5e605ed15c0f302932d9487e6c56b7b))
+
+
 ## v0.6.5 (2025-03-24)
 
 ### Bug Fixes
