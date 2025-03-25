@@ -1,6 +1,30 @@
 # CHANGELOG
 
 
+## v0.6.10 (2025-03-25)
+
+### Bug Fixes
+
+- Update README to reflect new roadmap and upcoming features
+  ([`d40d3ce`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/d40d3cea8835dd7b9acf62150263cc56419bd466))
+
+
+## v0.6.9 (2025-03-24)
+
+### Bug Fixes
+
+- Enhance release workflow with version management and README updates
+  ([`ab01983`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/ab01983ffa03df8bb5996226d870cb17a5e2f6e4))
+
+
+## v0.6.8 (2025-03-24)
+
+### Bug Fixes
+
+- Update release workflow to generate and update README with latest release changes
+  ([`a0bc045`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/a0bc045f35caeadd2706fd8be50960cbaace92c8))
+
+
 ## v0.6.7 (2025-03-24)
 
 ### Bug Fixes
