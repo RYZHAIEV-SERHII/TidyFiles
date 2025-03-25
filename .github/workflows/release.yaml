@@ -60,44 +60,6 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Next version will be: $VERSION"
 
-      # Generate CHANGELOG without committing - this creates the file we'll use for README update
-      - name: Generate CHANGELOG
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release version --no-commit
-
-      # Update README.md with the latest release information from CHANGELOG
-      - name: Update README.md with latest release
-        run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          echo "Updating README for version: $VERSION"
-
-          # Extract latest changes from newly generated CHANGELOG
-          LATEST_CHANGES=$(awk '/^## \['$VERSION'\]/{p=1;next} /^## \[/{p=0} p' CHANGELOG.md | grep -E '^### |^- ' | sed 's/^### //' | sed 's/^- /- /')
-
-          if [ -n "$LATEST_CHANGES" ]; then
-            TMP_FILE=$(mktemp)
-            # Update the "Latest Release" section in README
-            awk -v version="$VERSION" -v changes="$LATEST_CHANGES" '
-            /### Latest Release \(v[0-9]+\.[0-9]+\.[0-9]+\)/{
-              print "### Latest Release (v" version ")"
-              print changes
-              found=1
-              next
-            }
-            found && /^- /{next}
-            {print}
-            ' README.md > "$TMP_FILE"
-            mv "$TMP_FILE" README.md
-
-            # Configure git for the commit
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-
-            # Stage README changes for inclusion in version bump commit
-            git add README.md
-          fi
-
       # Perform the actual version bump and release
       - name: Semantic Release
         id: release

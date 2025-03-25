@@ -94,32 +94,33 @@ We welcome contributions! Check out our [Contributing Guidelines](CONTRIBUTING.m
 ## 📄 License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 🎯 What's New & Coming Up
+## 🎯 Roadmap & Development
 
-### Latest Release (v0.6.3)
-- ✨ Implemented core file organization functionality
-- 🎨 Enhanced console UI with Rich library
-- 🐛 Fixed logging during folder operations
-- 📚 Added comprehensive documentation
+### Upcoming Features (v0.7.0)
+- 🌐 **Multi-language Interface**: Switch between different languages using `--lang` flag for global accessibility
+- ↩️ **Reversible Operations**: Easily undo recent file organizations with `--undo` command
+- 📁 **Custom Categories**: Define your own file categories and organization rules via simple configuration
+- 🗂️ **Smart Subdirectories**: Create dynamic folder structures based on file metadata and patterns
 
-### Coming Soon (v0.7.0)
-- [ ] `--lang` flag for multi-language support
-- [ ] `--undo` operation to reverse recent changes
-- [ ] Custom file category definitions
-- [ ] Subdirectory organization support
+### Future Roadmap (v0.8.0+)
+- 🔍 **Smart Deduplication**: Intelligently detect and handle duplicate files while preserving the newest versions
+- ✨ **Advanced Renaming**: Bulk rename files using patterns, dates, and custom templates
+- 🤖 **AI Organization**: Use AI to categorize files based on content, not just extensions
+- 🖥️ **GUI Interface**: Optional graphical interface for users who prefer visual file management
+- ☁️ **Cloud Integration**: Direct organization of Dropbox and Google Drive folders
+- ⏰ **Scheduled Tasks**: Set up automatic organization at specified times or intervals
+- 🗜️ **Smart Compression**: Automatically compress old or large files to save space
+- 📊 **Organization Presets**: Save and share your favorite organization patterns
+- 📈 **Usage Analytics**: Track space savings and organization patterns over time
+- 🔄 **Silent Updates**: Seamless background updates with rollback support
+- 💾 **History System**: Browse and restore previous file organizations
+- 🎨 **Terminal Themes**: Customize CLI appearance with modern color schemes
+- 🔔 **Smart Notifications**: Get notified when long-running operations complete
+- ⚡ **Reliable Processing**: Resume interrupted operations where they left off
+- 🔐 **Safety Checks**: Verify file integrity before and after operations
+- 📱 **Remote Control**: Monitor and manage operations from your mobile device
 
-### Future Plans (v0.8.0+)
-- [ ] File deduplication detection
-- [ ] Bulk rename operations
-- [ ] File content-based organization
-- [ ] GUI interface option
-- [ ] Integration with cloud storage services
-- [ ] Schedule automated organization
-- [ ] File compression options
-- [ ] Organization templates/presets
-- [ ] Statistics and reports generation
-
-For full version history, see our [CHANGELOG.md](CHANGELOG.md).
+For detailed version history and latest changes, see our [CHANGELOG](CHANGELOG.md) 📈
 
 ## 📊 Stats
 - **First Release**: March 2025
