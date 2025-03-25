@@ -52,30 +52,47 @@ jobs:
       - name: Verify upstream hasn't changed
         shell: bash
         run: |
-          set +o pipefail
-          UPSTREAM_BRANCH_NAME="$(git status -sb | head -n 1 | cut -d' ' -f2 | grep -E '\.{3}' | cut -d'.' -f4)"
-          printf '%s\n' "Upstream branch name: $UPSTREAM_BRANCH_NAME"
-          set -o pipefail
+          # Enable debugging output
+          set -x
 
-          if [ -z "$UPSTREAM_BRANCH_NAME" ]; then
-              printf >&2 '%s\n' "::error::Unable to determine upstream branch name!"
+          # If triggered by a tag, verify tag points to the correct commit
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "Running from tag: ${{ github.ref_name }}"
+
+            # Get the commit that the tag points to
+            TAG_SHA=$(git rev-parse ${{ github.ref }})
+            HEAD_SHA=$(git rev-parse HEAD)
+
+            if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+              echo "::error::Tag SHA ($TAG_SHA) does not match HEAD SHA ($HEAD_SHA)"
               exit 1
+            fi
+
+            echo "Tag verification successful"
+            exit 0
           fi
 
-          git fetch "${UPSTREAM_BRANCH_NAME%%/*}"
+          # For branch pushes, verify against upstream
+          if [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            echo "Running from branch: ${{ github.ref_name }}"
 
-          if ! UPSTREAM_SHA="$(git rev-parse "$UPSTREAM_BRANCH_NAME")"; then
-              printf >&2 '%s\n' "::error::Unable to determine upstream branch sha!"
+            # Fetch the latest changes
+            git fetch origin ${{ github.ref_name }}
+
+            HEAD_SHA=$(git rev-parse HEAD)
+            UPSTREAM_SHA=$(git rev-parse origin/${{ github.ref_name }})
+
+            if [ "$HEAD_SHA" != "$UPSTREAM_SHA" ]; then
+              echo "::error::Branch HEAD ($HEAD_SHA) does not match upstream ($UPSTREAM_SHA)"
               exit 1
+            fi
+
+            echo "Branch verification successful"
+            exit 0
           fi
 
-          HEAD_SHA="$(git rev-parse HEAD)"
-
-          if [ "$HEAD_SHA" != "$UPSTREAM_SHA" ]; then
-              printf >&2 '%s\n' "[HEAD SHA] $HEAD_SHA != $UPSTREAM_SHA [UPSTREAM SHA]"
-              printf >&2 '%s\n' "::error::Upstream has changed, aborting release..."
-              exit 1
-          fi
+          echo "::error::Unexpected ref type: ${{ github.ref }}"
+          exit 1
 
       # Set up Python environment according to pyproject.toml
       - name: Set up Python
