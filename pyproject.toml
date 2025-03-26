@@ -98,13 +98,12 @@ version_variables = [
     "tidyfiles/__init__.py:__version__",
     "pyproject.toml:version"
 ]
-branch = "main"
+branch = false
 upload_to_pypi = false
 build_command = "pip install uv && uv build"
 dist_path = "dist/"
 remove_dist = true
 major_on_zero = false
-prerelease = false
 tag_format = "{version}"
 commit_message = "chore(release): bump version to {version}"
 changelog_file = "CHANGELOG.md"
@@ -128,6 +127,7 @@ patch_tags = ["fix", "perf"]
 [tool.semantic_release.branches.main]
 match = "main"
 prerelease = false
+prerelease_token = false
 
 [tool.semantic_release.branches.rc]
 match = "rc/*"
@@ -137,18 +137,18 @@ prerelease_token = "rc"
 [tool.semantic_release.branches.beta]
 match = "beta/*"
 prerelease = true
-prerelease_token = "beta"
+prerelease_token = "b"
 
 [tool.semantic_release.branches.alpha]
 match = "alpha/*"
 prerelease = true
-prerelease_token = "alpha"
+prerelease_token = "a"
 
 # When publishing to PyPI. PEP 440 requires prerelease versions to use a format such as:
 [tool.semantic_release.prerelease_tag_format]
-alpha = "{version}a{prerelease_offset}"         # 0.6.10a1
-beta = "{version}b{prerelease_offset}"          # 0.6.10b1
-rc = "{version}rc{prerelease_offset}"           # 0.6.10rc1
+alpha = "{version}a{prerelease_offset}"         # 0.6.12a1
+beta = "{version}b{prerelease_offset}"          # 0.6.12b1
+rc = "{version}rc{prerelease_offset}"           # 0.6.12rc1
 
 [tool.semantic_release.changelog]
 changelog_sections = [
