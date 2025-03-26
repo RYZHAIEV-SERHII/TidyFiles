@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.6.11 (2025-03-26)
+
+### Bug Fixes
+
+- **ci**: Enhance release workflow and prerelease tag handling. (rc)
+  ([`bc7464e`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/bc7464ef2177fe5b066c4a447d244793d0c4e3e4))
+
+- **ci**: Update build command in pyproject.toml to include pip installation. (rc)
+  ([`847c45a`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/847c45a7ed7ebdc979678538305ab23fba3488e2))
+
+- **rc**: Enhance commit message validation to support prerelease tags
+  ([`adf8a65`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/adf8a65f60e6557608c7658737693cd7950a087d))
+
+### Continuous Integration
+
+- Enhance release workflow with improved job structure and safety checks
+  ([`b84b0af`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/b84b0af450687d2aea3be87eca33e440d8116d93))
+
+- Enhance release workflow with tag and branch verification checks
+  ([`981b1e7`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/981b1e7e2a7af52f915aaacae4a6aa98040a803e))
+
+
 ## v0.6.10 (2025-03-25)
 
 ### Bug Fixes
