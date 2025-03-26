@@ -1,92 +1,83 @@
-# Workflow name that appears in GitHub Actions UI
+# Workflow for automated releases, including version management, building, and publishing
 name: Release
 
 # Trigger conditions for the workflow
 on:
   push:
     branches:
-      - main  # Runs on pushes to main branch
-    tags:     # Also runs when these tag patterns are pushed
+      - main  # Runs on every push to main branch
+    tags:     # Also runs when version tags are pushed
       - "[0-9]+.[0-9]+.[0-9]+"        # Standard releases (e.g., 1.2.3)
       - "[0-9]+.[0-9]+.[0-9]+a[0-9]+" # Alpha releases (e.g., 1.2.3a1)
       - "[0-9]+.[0-9]+.[0-9]+b[0-9]+" # Beta releases (e.g., 1.2.3b1)
       - "[0-9]+.[0-9]+.[0-9]+rc[0-9]+" # Release candidates (e.g., 1.2.3rc1)
 
-# Global environment variables available to all jobs
+# Global environment variables
 env:
-  PACKAGE_NAME: "TidyFiles"
-  OWNER: "RYZHAIEV-SERHII"
+  PACKAGE_NAME: "TidyFiles"  # Used for reference in logs and releases
+  OWNER: "RYZHAIEV-SERHII"  # Repository owner
 
 # List of jobs to run
 jobs:
-  # Primary release job that handles semantic versioning
+  # Single job that handles the entire release process
   release:
     runs-on: ubuntu-latest
-    # Prevent concurrent releases and ensure ordered execution
+
+    # Prevent concurrent releases to avoid version conflicts
     concurrency:
       group: ${{ github.workflow }}-release-${{ github.ref_name }}
       cancel-in-progress: false
-    # Required permissions for release operations
+
+    # Required permissions for the job
     permissions:
-      id-token: write  # Required for trusted publishing
-      contents: write  # Required for creating releases
-    # Outputs that can be used by other jobs
-    outputs:
-      released: ${{ steps.release.outputs.released }}
-      version: ${{ steps.release.outputs.version }}
-      tag: ${{ steps.release.outputs.tag }}
+      id-token: write  # Required for trusted publishing to PyPI
+      contents: write  # Required for creating GitHub releases
+
+    # Environment configuration for PyPI publishing
+    environment:
+      name: release    # Uses 'release' environment secrets
 
     steps:
-      # Check out the repository with full history for semantic-release
+      # Step 1: Check out the repository code
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0  # Full history needed for semantic-release
 
-      # Ensure we're at the exact commit that triggered the workflow
+      # Step 2: Ensure we're at the exact commit that triggered the workflow
       - name: Force release branch to workflow SHA
         run: git reset --hard ${{ github.sha }}
 
-      # Safety check to ensure no changes occurred while workflow was queued
+      # Step 3: Verify repository state matches the trigger
       - name: Verify upstream hasn't changed
         shell: bash
         run: |
-          # Enable debugging output
-          set -x
+          set -x  # Enable debug output
 
-          # If triggered by a tag, verify tag points to the correct commit
+          # Handle tag-triggered workflows
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "Running from tag: ${{ github.ref_name }}"
-
-            # Get the commit that the tag points to
             TAG_SHA=$(git rev-parse ${{ github.ref }})
             HEAD_SHA=$(git rev-parse HEAD)
-
             if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
               echo "::error::Tag SHA ($TAG_SHA) does not match HEAD SHA ($HEAD_SHA)"
               exit 1
             fi
-
             echo "Tag verification successful"
             exit 0
           fi
 
-          # For branch pushes, verify against upstream
+          # Handle branch-triggered workflows
           if [[ "${{ github.ref }}" == refs/heads/* ]]; then
             echo "Running from branch: ${{ github.ref_name }}"
-
-            # Fetch the latest changes
             git fetch origin ${{ github.ref_name }}
-
             HEAD_SHA=$(git rev-parse HEAD)
             UPSTREAM_SHA=$(git rev-parse origin/${{ github.ref_name }})
-
             if [ "$HEAD_SHA" != "$UPSTREAM_SHA" ]; then
               echo "::error::Branch HEAD ($HEAD_SHA) does not match upstream ($UPSTREAM_SHA)"
               exit 1
             fi
-
             echo "Branch verification successful"
             exit 0
           fi
@@ -94,104 +85,33 @@ jobs:
           echo "::error::Unexpected ref type: ${{ github.ref }}"
           exit 1
 
-      # Set up Python environment according to pyproject.toml
+      # Step 4: Set up Python environment according to pyproject.toml
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version-file: "pyproject.toml"
 
-      # Install uv package manager for faster dependency management
+      # Step 5: Install uv package manager for dependency management
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      # Install project dependencies
+      # Step 6: Install project dependencies
       - name: Install dependencies
         run: uv sync
 
-      # Run semantic-release to determine version and create release
+      # Step 7: Run semantic-release to handle everything:
+      # - Determines the next version based on commit messages
+      # - Creates a new git tag
+      # - Builds the package using `uv build` (from pyproject.toml)
+      # - Creates a GitHub release
+      # - Publishes to PyPI using trusted publishing
       - name: Semantic Release
         id: release
         uses: python-semantic-release/python-semantic-release@v9.21.0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: "github-actions"
           git_committer_email: "actions@users.noreply.github.com"
-
-  # Job to build the Python package
-  build:
-    needs: release  # Depends on release job
-    if: needs.release.outputs.released == 'true'  # Only run if new version was released
-    runs-on: ubuntu-latest
-    steps:
-      # Checkout the repository at the new release tag
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release.outputs.tag }}
-
-      # Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "pyproject.toml"
-
-      # Install uv for dependency management
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      # Install project dependencies
-      - name: Install dependencies
-        run: uv sync
-
-      # Build Python package distributions
-      - name: Build package
-        run: uv build
-
-      # Save built distributions as artifacts
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-  # Job to publish the package to PyPI
-  pypi_publish:
-    needs: [release, build]  # Requires both release and build jobs
-    if: needs.release.outputs.released == 'true'  # Only run if new version was released
-    runs-on: ubuntu-latest
-    environment:
-      name: release  # Use release environment for PyPI credentials
-    permissions:
-      id-token: write  # Required for trusted publishing
-    steps:
-      # Download built package distributions
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      # Publish to PyPI using trusted publishing
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
-  # Job to upload assets to GitHub Release
-  github_assets:
-    needs: [release, build]  # Requires both release and build jobs
-    if: needs.release.outputs.released == 'true'  # Only run if new version was released
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required for uploading release assets
-    steps:
-      # Download built package distributions
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      # Upload distributions to GitHub Release
-      - name: Upload to GitHub Release
-        uses: python-semantic-release/publish-action@v9.21.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ needs.release.outputs.tag }}

@@ -125,13 +125,14 @@ allowed_tags = [
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
 prerelease_token_search_patterns = [
-    "\\((alpha|beta|rc)\\)"           # (alpha), (beta), (rc)
-]
+    "\\((alpha|beta|rc)\\)"           # (alpha), (beta) or (rc) pattern must be present in commit message to be considered as prerelease
+]                                     # e.g. "feat: add new feature (alpha)"
 
+# When publishing to PyPI. PEP 440 requires prerelease versions to use a format such as:
 [tool.semantic_release.prerelease_tag_format]
-alpha = "{version}-alpha.{prerelease_offset}"
-beta = "{version}-beta.{prerelease_offset}"
-rc = "{version}-rc.{prerelease_offset}"
+alpha = "{version}a{prerelease_offset}"         # 0.6.10a1
+beta = "{version}b{prerelease_offset}"          # 0.6.10b1
+rc = "{version}rc{prerelease_offset}"           # 0.6.10rc1
 
 [tool.semantic_release.changelog]
 changelog_sections = [
