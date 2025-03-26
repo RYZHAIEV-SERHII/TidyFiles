@@ -100,7 +100,7 @@ version_variables = [
 ]
 branch = "main"
 upload_to_pypi = true
-build_command = "uv build"
+build_command = "pip install uv && uv build"
 dist_path = "dist/"
 remove_dist = true
 major_on_zero = false
