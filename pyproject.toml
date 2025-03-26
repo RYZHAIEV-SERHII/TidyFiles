@@ -104,6 +104,7 @@ build_command = "uv build"
 dist_path = "dist/"
 remove_dist = true
 major_on_zero = false
+prerelease = true
 tag_format = "{version}"
 commit_message = "chore(release): bump version to {version}"
 changelog_file = "CHANGELOG.md"
@@ -123,6 +124,14 @@ allowed_tags = [
 ]
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
+prerelease_token_search_patterns = [
+    "\\((alpha|beta|rc)\\)"           # (alpha), (beta), (rc)
+]
+
+[tool.semantic_release.prerelease_tag_format]
+alpha = "{version}-alpha.{prerelease_offset}"
+beta = "{version}-beta.{prerelease_offset}"
+rc = "{version}-rc.{prerelease_offset}"
 
 [tool.semantic_release.changelog]
 changelog_sections = [

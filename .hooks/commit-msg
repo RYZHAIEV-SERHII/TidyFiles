@@ -8,7 +8,16 @@ if [ -z "$commit_msg" ]; then
 fi
 
 # Check if the commit message follows the Angular conventional format
-if ! echo "$commit_msg" | grep -qE "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.+\))?: .+"; then
+# Pattern explanation:
+# - Allows standard types: feat, fix, etc.
+# - Allows scopes in parentheses that can be either:
+#   * Prerelease tags: (alpha), (beta), (rc)
+#   * Regular scopes: (auth), (api), etc.
+# Examples:
+# - feat(alpha): new feature     -> Creates prerelease version
+# - feat(auth): new feature      -> Regular feature with auth scope
+# - fix(beta): bug fix          -> Creates beta prerelease
+if ! echo "$commit_msg" | grep -qE "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\((alpha|beta|rc|[a-zA-Z0-9-]+)\))?: .+"; then
   echo "Error: Commit message must follow Angular conventional format for semantic versioning."
   echo ""
   echo "Format: <type>(<scope>): <description>"
