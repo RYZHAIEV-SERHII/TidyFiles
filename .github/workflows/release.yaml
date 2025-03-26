@@ -6,6 +6,9 @@ on:
   push:
     branches:
       - main  # Runs on every push to main branch
+      - 'rc/*'    # Release candidate branches
+      - 'beta/*'  # Beta release branches
+      - 'alpha/*' # Alpha release branches
     tags:     # Also runs when version tags are pushed
       - "[0-9]+.[0-9]+.[0-9]+"        # Standard releases (e.g., 1.2.3)
       - "[0-9]+.[0-9]+.[0-9]+a[0-9]+" # Alpha releases (e.g., 1.2.3a1)
@@ -99,19 +102,27 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # Step 7: Run semantic-release to handle everything:
-      # - Determines the next version based on commit messages
-      # - Creates a new git tag
-      # - Builds the package using `uv build` (from pyproject.toml)
-      # - Creates a GitHub release
-      # - Publishes to PyPI using trusted publishing
-      - name: Semantic Release
+      # Step 7: Run semantic-release to handle version management and build
+      - name: Action | Semantic Version Release
         id: release
-        uses: python-semantic-release/python-semantic-release@v9.21.0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          # Set environment based on branch
+          PRERELEASE: ${{ contains(github.ref, 'alpha/') || contains(github.ref, 'beta/') || contains(github.ref, 'rc/') }}
+        uses: python-semantic-release/python-semantic-release@v9.21.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: "github-actions"
           git_committer_email: "actions@users.noreply.github.com"
+
+      # Step 8: Publish to PyPI if a new version was released
+      - name: Publish | Upload package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        if: steps.release.outputs.released == 'true'
+
+      # Step 9: Upload artifacts to GitHub Releases
+      - name: Publish | Upload to GitHub Release Assets
+        uses: python-semantic-release/publish-action@v9.21.0
+        if: steps.release.outputs.released == 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.release.outputs.tag }}
