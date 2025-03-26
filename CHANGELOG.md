@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.6.12 (2025-03-26)
+
+### Bug Fixes
+
+- **ci**: Update release configuration to disable prerelease for main branch and add support for
+  alpha, beta, and rc branches
+  ([`5106d9d`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/5106d9d0a858bc0371646ad2348666ed614dba3e))
+
+
 ## v0.6.11 (2025-03-26)
 
 ### Bug Fixes
