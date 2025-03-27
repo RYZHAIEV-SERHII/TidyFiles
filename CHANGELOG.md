@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.6.13-rc.1 (2025-03-27)
+
+### Bug Fixes
+
+- **ci**: Remove prerelease_token from main branch configuration
+  ([`2d53c64`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/2d53c64903f7122ee9511ab37bc06748422331f9))
+
+### Documentation
+
+- Update contributing guidelines and branch selection process
+  ([`1965879`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/19658799af79ccb37482ecb94cbcdc8c0ea13144))
+
+
 ## v0.6.12 (2025-03-26)
 
 ### Bug Fixes
