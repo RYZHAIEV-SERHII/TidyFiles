@@ -97,28 +97,30 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## 🎯 Roadmap & Development
 
 ### Upcoming Features (v0.7.0)
-- 🌐 **Multi-language Interface**: Switch between different languages using `--lang` flag for global accessibility
-- ↩️ **Reversible Operations**: Easily undo recent file organizations with `--undo` command
-- 📁 **Custom Categories**: Define your own file categories and organization rules via simple configuration
-- 🗂️ **Smart Subdirectories**: Create dynamic folder structures based on file metadata and patterns
+- ↩️ **Reversible Operations**: Easily undo recent file organizations with `--undo` command.
+- 💾 **History System**: Browse and restore previous file organizations.
+- ⚡ **Reliable Processing**: Resume interrupted operations where they left off, ensuring operations can be continued or undone based on the saved history.
+- 🔐 **Safety Checks**: Verify file integrity before and after operations to ensure reliable processing.
 
 ### Future Roadmap (v0.8.0+)
-- 🔍 **Smart Deduplication**: Intelligently detect and handle duplicate files while preserving the newest versions
-- ✨ **Advanced Renaming**: Bulk rename files using patterns, dates, and custom templates
-- 🤖 **AI Organization**: Use AI to categorize files based on content, not just extensions
-- 🖥️ **GUI Interface**: Optional graphical interface for users who prefer visual file management
-- ☁️ **Cloud Integration**: Direct organization of Dropbox and Google Drive folders
-- ⏰ **Scheduled Tasks**: Set up automatic organization at specified times or intervals
-- 🗜️ **Smart Compression**: Automatically compress old or large files to save space
-- 📊 **Organization Presets**: Save and share your favorite organization patterns
-- 📈 **Usage Analytics**: Track space savings and organization patterns over time
-- 🔄 **Silent Updates**: Seamless background updates with rollback support
-- 💾 **History System**: Browse and restore previous file organizations
-- 🎨 **Terminal Themes**: Customize CLI appearance with modern color schemes
-- 🔔 **Smart Notifications**: Get notified when long-running operations complete
-- ⚡ **Reliable Processing**: Resume interrupted operations where they left off
-- 🔐 **Safety Checks**: Verify file integrity before and after operations
-- 📱 **Remote Control**: Monitor and manage operations from your mobile device
+- 🛈 **Info Feature Expansion**: Enhance the info feature to provide detailed metadata and file information.
+- 🌐 **Multi-language Interface**: Switch between different languages using `--lang` flag for global accessibility.
+- 📁 **Custom Categories**: Define your own file categories and organization rules via simple configuration.
+- 🗂️ **Smart Subdirectories**: Create dynamic folder structures based on file metadata and patterns.
+- 🔍 **Smart Deduplication**: Intelligently detect and handle duplicate files while preserving the newest versions.
+- ✨ **Advanced Renaming**: Bulk rename files using patterns, dates, and custom templates.
+- 🤖 **AI Organization**: Use AI to categorize files based on content, not just extensions.
+- 🖥️ **GUI Interface**: Optional graphical interface for users who prefer visual file management.
+- ☁️ **Cloud Integration**: Direct organization of Dropbox and Google Drive folders.
+- ⏰ **Scheduled Tasks**: Set up automatic organization at specified times or intervals.
+- 🗜️ **Smart Compression**: Automatically compress old or large files to save space.
+- 📊 **Organization Presets**: Save and share your favorite organization patterns.
+- 📈 **Usage Analytics**: Track space savings and organization patterns over time.
+- 🔄 **Silent Updates**: Seamless background updates with rollback support.
+- 🎨 **Terminal Themes**: Customize CLI appearance with modern color schemes.
+- 🔔 **Smart Notifications**: Get notified when long-running operations complete.
+- 🔐 **Safety Checks**: Verify file integrity before and after operations.
+- 📱 **Remote Control**: Monitor and manage operations from your mobile device.
 
 For detailed version history and latest changes, see our [CHANGELOG](CHANGELOG.md) 📈
 
