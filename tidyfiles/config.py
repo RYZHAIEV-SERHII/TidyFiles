@@ -205,7 +205,7 @@ def get_settings(
         "log_level_console": raw_settings["log_console_level"],
         "log_level_file": raw_settings["log_file_level"],
         "log_file_mode": raw_settings["log_file_mode"],
-        "settngs_file_path": settings_file_path,
+        "settings_file_path": settings_file_path,
         "excludes": excludes_set,
     }
 

@@ -87,7 +87,7 @@ def main(
     """TidyFiles - Organize your files automatically by type."""
     if not source_dir and not version:
         ctx.get_help()
-        raise typer.Exit()
+        ctx.exit()  # Ensure the exit is called after displaying help
 
     if source_dir:
         # Get settings with CLI arguments

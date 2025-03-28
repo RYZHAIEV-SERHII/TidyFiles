@@ -52,8 +52,13 @@ def create_plans(
     """
     transfer_plan = []
     delete_plan = []
+    excludes = kwargs.get("excludes", set())
 
     for filesystem_object in source_dir.rglob("*"):
+        # Skip if the object is in excludes
+        if any(filesystem_object.is_relative_to(excluded) for excluded in excludes):
+            continue
+
         if filesystem_object.is_dir():
             delete_plan.append(filesystem_object)
         elif filesystem_object.is_file():
@@ -114,10 +119,8 @@ def transfer_files(
                 num_transferred_files += 1
             except Exception as e:
                 error_msg = (
-                    "MOVE_FILE [FAILED] | "
-                    f"FROM: {source} | "
-                    f"TO: {destination} | "
-                    f"ERROR: {str(e)}"
+                    f"MOVE_FILE [FAILED] | FROM: {source} | "
+                    f"TO: {destination} | ERROR: {str(e)}"
                 )
                 operations.append(f"[red]{error_msg}[/red]")
                 logger.error(error_msg)
