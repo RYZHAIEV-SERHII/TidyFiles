@@ -119,7 +119,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - 🔄 **Silent Updates**: Seamless background updates with rollback support.
 - 🎨 **Terminal Themes**: Customize CLI appearance with modern color schemes.
 - 🔔 **Smart Notifications**: Get notified when long-running operations complete.
-- 🔐 **Safety Checks**: Verify file integrity before and after operations.
 - 📱 **Remote Control**: Monitor and manage operations from your mobile device.
 
 For detailed version history and latest changes, see our [CHANGELOG](CHANGELOG.md) 📈
