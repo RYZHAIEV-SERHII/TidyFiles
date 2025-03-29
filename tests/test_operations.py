@@ -245,3 +245,41 @@ def test_get_folder_path(tmp_path):
     # Test with non-matching extension
     test_file = tmp_path / "test.xyz"
     assert get_folder_path(test_file, cleaning_plan, unrecognized) == unrecognized
+
+
+def test_create_plans_with_symlink(tmp_path):
+    """Test create_plans with a symlink in the source directory"""
+    # Create source structure
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Create a file and a symlink
+    test_file = source_dir / "test.txt"
+    test_file.write_text("test content")
+    symlink = source_dir / "test_link"
+
+    # Create a symlink to a non-existent file to ensure it's not treated as a file
+    nonexistent_file = source_dir / "nonexistent.txt"
+    symlink.symlink_to(nonexistent_file)
+
+    settings = {
+        "source_dir": source_dir,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {
+            tmp_path / "documents": [".txt"],
+        },
+        "unrecognized_file": tmp_path / "other",
+        "excludes": set(),
+    }
+
+    # Create plans
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify that only the real file is in the transfer plan
+    assert len(transfer_plan) == 1
+    assert transfer_plan[0][0] == test_file
+    assert len(delete_plan) == 0
+
+    # Verify the destination path
+    dest_path = tmp_path / "documents" / "test.txt"
+    assert transfer_plan[0][1] == dest_path
