@@ -1,8 +1,8 @@
 import os
 import pytest
 import toml
-from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 from tidyfiles.config import (
     get_settings,
     save_settings,
@@ -89,11 +89,15 @@ def test_settings_file_operations_and_errors(tmp_path, monkeypatch):
     loaded_settings = load_settings(settings_path)
     assert loaded_settings["test_key"] == "test_value"
 
-    # Test None path
+    # Test None path - should use mocked DEFAULT_SETTINGS_PATH
+    mock_default_path = tmp_path / "default_settings.toml"
+    monkeypatch.setattr("tidyfiles.config.DEFAULT_SETTINGS_PATH", mock_default_path)
+
     test_settings = {"test": "value"}
     save_settings(test_settings, None)
     loaded = load_settings(None)
     assert loaded["test"] == "value"
+    assert mock_default_path.exists()
 
     # Test invalid TOML
     invalid_toml = tmp_path / "invalid.toml"
@@ -128,40 +132,33 @@ def test_settings_file_operations_and_errors(tmp_path, monkeypatch):
         save_settings({"test": "value"}, tmp_path / "subdir" / "settings.toml")
 
 
-def test_load_settings_none_path(monkeypatch):
+def test_load_settings_none_path(temp_dir):
     """Test load_settings with None path"""
-    mock_file = StringIO(toml.dumps(DEFAULT_SETTINGS))
-    mock_file_write = StringIO()
+    settings_path = temp_dir / ".tidyfiles" / "settings.toml"
 
-    class MockPath:
-        def __init__(self, *args, **kwargs):
-            pass
+    with patch("tidyfiles.config.DEFAULT_SETTINGS_PATH", settings_path):
+        # Test loading settings with None path - should create default settings
+        loaded_settings = load_settings(None)
 
-        def exists(self):
-            return False
+        # Verify that all default settings are present
+        assert loaded_settings == DEFAULT_SETTINGS
 
-        def resolve(self):
-            return self
+        # Verify the file was created in the correct location
+        assert settings_path.exists()
 
-        def parent(self):
-            return self
+        # Verify the content matches DEFAULT_SETTINGS
+        saved_settings = toml.loads(settings_path.read_text())
+        assert saved_settings == DEFAULT_SETTINGS
 
-        def mkdir(self, *args, **kwargs):
-            pass
+        # Test loading again from the created file
+        reloaded_settings = load_settings(None)
+        assert reloaded_settings == DEFAULT_SETTINGS
 
-    def mock_open(*args, **kwargs):
-        if "w" in kwargs.get("mode", ""):
-            return mock_file_write
-        return mock_file
-
-    monkeypatch.setattr("pathlib.Path", MockPath)
-    monkeypatch.setattr("builtins.open", mock_open)
-
-    loaded_settings = load_settings(None)
-    assert isinstance(loaded_settings, dict)
-    for key in DEFAULT_SETTINGS:
-        assert key in loaded_settings
-        assert loaded_settings[key] == DEFAULT_SETTINGS[key]
+    # Clean up
+    if settings_path.exists():
+        settings_path.unlink()
+    if settings_path.parent.exists():
+        settings_path.parent.rmdir()
 
 
 def test_get_settings_destination_errors(tmp_path, monkeypatch):
