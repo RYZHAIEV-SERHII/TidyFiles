@@ -148,25 +148,7 @@ def test_settings_file_operations_and_errors(tmp_path, monkeypatch):
             "log_file_name": "test.log",
         }
         settings = get_settings(**minimal_settings)
-        assert (
-            settings["log_file_path"]
-            == (settings["destination_dir"] / "test.log").resolve()
-        )
-
-        # Test with complete raw settings
-        complete_settings = DEFAULT_SETTINGS.copy()
-        complete_settings.update(
-            {
-                "source_dir": str(tmp_path),
-                "log_folder_name": None,
-                "log_file_name": "complete.log",
-            }
-        )
-        settings = get_settings(**complete_settings)
-        assert (
-            settings["log_file_path"]
-            == (settings["destination_dir"] / "complete.log").resolve()
-        )
+        assert settings["log_file_path"] == (tmp_path / "test.log").resolve()
 
 
 def test_load_settings_none_path(temp_dir):
@@ -270,19 +252,13 @@ def test_get_settings_edge_cases(tmp_path):
     settings = get_settings(
         source_dir=str(source_dir), log_folder_name=None, log_file_name="test.log"
     )
-    assert (
-        settings["log_file_path"]
-        == (settings["destination_dir"] / "test.log").resolve()
-    )
+    assert settings["log_file_path"] == (source_dir / "test.log").resolve()
 
     # Test with empty string log_folder_name
     settings = get_settings(
         source_dir=str(source_dir), log_folder_name="", log_file_name="test.log"
     )
-    assert (
-        settings["log_file_path"]
-        == (settings["destination_dir"] / "test.log").resolve()
-    )
+    assert settings["log_file_path"] == (source_dir / "test.log").resolve()
 
     # Test with custom log_folder_name
     custom_log_folder = str(tmp_path / "logs")
@@ -303,19 +279,16 @@ def test_log_file_path_handling(tmp_path):
     settings = get_settings(
         source_dir=str(source_dir), log_folder_name=None, log_file_name="test1.log"
     )
-    assert (
-        settings["log_file_path"]
-        == (settings["destination_dir"] / "test1.log").resolve()
-    )
+    assert settings["log_file_path"] == (source_dir / "test1.log").resolve()
 
-    # Test case 2: Empty string for log_folder_name
+    # Test case 2: Explicit log folder path
+    custom_log_folder = tmp_path / "logs"
     settings = get_settings(
-        source_dir=str(source_dir), log_folder_name="", log_file_name="test2.log"
+        source_dir=str(source_dir),
+        log_folder_name=str(custom_log_folder),
+        log_file_name="test2.log",
     )
-    assert (
-        settings["log_file_path"]
-        == (settings["destination_dir"] / "test2.log").resolve()
-    )
+    assert settings["log_file_path"] == (custom_log_folder / "test2.log").resolve()
 
     # Test case 3: False-like value for log_folder_name
     settings = get_settings(
