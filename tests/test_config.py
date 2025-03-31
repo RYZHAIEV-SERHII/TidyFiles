@@ -183,3 +183,171 @@ def test_get_settings_destination_errors(tmp_path, monkeypatch):
     with pytest.raises(ValueError) as exc_info:
         get_settings(source_dir=str(source_dir), destination_dir=str(dest_dir))
     assert "Cannot create destination directory" in str(exc_info.value)
+
+
+def test_get_settings_with_empty_strings(tmp_path):
+    """Test get_settings with empty strings in settings."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Test with empty strings
+    settings = get_settings(
+        source_dir=str(source_dir),
+        settings_folder_name=str(tmp_path / "config"),  # Use tmp_path instead of root
+        settings_file_name="test.toml",
+        log_folder_name=str(tmp_path / "logs"),  # Use tmp_path instead of root
+        log_file_name="test.log",
+        destination_dir="",
+    )
+
+    # Verify paths are resolved correctly
+    assert settings["settings_file_path"].name == "test.toml"
+    assert settings["settings_file_path"].parent == tmp_path / "config"
+    assert settings["log_file_path"].name == "test.log"
+    assert settings["log_file_path"].parent == tmp_path / "logs"
+    assert settings["destination_dir"] == source_dir  # Should fall back to source_dir
+
+
+def test_load_settings_with_nonexistent_path(tmp_path):
+    """Test load_settings with a path that doesn't exist."""
+    nonexistent_path = tmp_path / "nonexistent" / "settings.toml"
+    settings = load_settings(nonexistent_path)
+    assert settings == DEFAULT_SETTINGS
+    assert nonexistent_path.exists()
+    assert nonexistent_path.parent.exists()
+
+
+def test_save_settings_with_write_error(tmp_path, monkeypatch):
+    """Test save_settings with write errors."""
+    settings_path = tmp_path / "settings.toml"
+
+    def mock_write(*args, **kwargs):
+        raise OSError("Write error")
+
+    # Mock the write method to raise an error
+    monkeypatch.setattr(
+        "builtins.open",
+        lambda *args, **kwargs: type(
+            "MockFile",
+            (),
+            {
+                "write": mock_write,
+                "__enter__": lambda x: x,
+                "__exit__": lambda *args: None,
+            },
+        )(),
+    )
+
+    with pytest.raises(OSError):
+        save_settings({"test": "value"}, settings_path)
+
+
+def test_get_settings_with_none_values(tmp_path):
+    """Test get_settings with None values."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Mock both Path.home() and DEFAULT_SETTINGS
+    mock_default_settings = DEFAULT_SETTINGS.copy()
+    mock_default_settings["log_folder_name"] = str(tmp_path / ".tidyfiles")
+
+    with patch("pathlib.Path.home", return_value=tmp_path), patch(
+        "tidyfiles.config.DEFAULT_SETTINGS", mock_default_settings
+    ):
+        # Test with None values for optional parameters
+        settings = get_settings(
+            source_dir=str(source_dir),
+            destination_dir=None,
+            cleaning_plan=None,
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+            log_folder_name=str(tmp_path / "logs"),  # Use tmp_path instead of root
+            excludes=None,
+        )
+
+        # Verify defaults are used
+        assert settings["destination_dir"] == source_dir
+        assert settings["cleaning_plan"]  # Should use DEFAULT_CLEANING_PLAN
+        assert settings["settings_file_path"].exists()
+        assert settings["settings_file_path"].parent == tmp_path / "config"
+        assert settings["log_file_path"].parent == tmp_path / "logs"
+
+
+def test_get_settings_with_empty_values(tmp_path):
+    """Test get_settings with empty values."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Test with empty values
+    settings = get_settings(
+        source_dir=str(source_dir),
+        destination_dir="",
+        cleaning_plan={},
+        settings_folder_name=str(tmp_path / "config"),  # Use tmp_path instead of root
+        log_folder_name=str(tmp_path / "logs"),  # Use tmp_path instead of root
+        excludes=[],
+    )
+
+    # Verify empty values are handled correctly
+    assert settings["destination_dir"] == source_dir
+    assert settings["cleaning_plan"]  # Should use DEFAULT_CLEANING_PLAN
+    assert settings["settings_file_path"].is_absolute()
+    assert settings["settings_file_path"].parent == tmp_path / "config"
+    assert settings["log_file_path"].is_absolute()
+    assert settings["log_file_path"].parent == tmp_path / "logs"
+    assert isinstance(settings["excludes"], set)
+    assert len(settings["excludes"]) >= 2  # Should include settings and log files
+
+
+def test_get_settings_log_folder_handling(tmp_path):
+    """Test get_settings log folder name handling."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Mock both Path.home() and DEFAULT_SETTINGS
+    mock_default_settings = DEFAULT_SETTINGS.copy()
+    mock_default_settings["log_folder_name"] = str(tmp_path / ".tidyfiles")
+
+    with patch("pathlib.Path.home", return_value=tmp_path), patch(
+        "tidyfiles.config.DEFAULT_SETTINGS", mock_default_settings
+    ):
+        # Test with log_folder_name set to None
+        settings_no_log_folder = get_settings(
+            source_dir=str(source_dir),
+            log_folder_name=None,
+            log_file_name="test.log",
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+        )
+        # Should use default .tidyfiles directory
+        assert settings_no_log_folder["log_file_path"].parent == tmp_path / ".tidyfiles"
+        assert settings_no_log_folder["log_file_path"].name == "test.log"
+
+        # Test with log_folder_name set to empty string
+        settings_empty_log_folder = get_settings(
+            source_dir=str(source_dir),
+            log_folder_name="",
+            log_file_name="test.log",
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+        )
+        # Should use source directory when log_folder_name is empty
+        assert settings_empty_log_folder["log_file_path"].parent == source_dir
+        assert settings_empty_log_folder["log_file_path"].name == "test.log"
+
+        # Test with log_folder_name set
+        log_folder = tmp_path / "logs"
+        settings_with_log_folder = get_settings(
+            source_dir=str(source_dir),
+            log_folder_name=str(log_folder),
+            log_file_name="test.log",
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+        )
+        # Should use specified log folder
+        assert settings_with_log_folder["log_file_path"].parent == log_folder
+        assert settings_with_log_folder["log_file_path"].name == "test.log"
