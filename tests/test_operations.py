@@ -1,10 +1,11 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
+
 from tidyfiles.operations import (
     create_plans,
-    transfer_files,
     delete_dirs,
     get_folder_path,
+    transfer_files,
 )
 
 
@@ -88,6 +89,63 @@ def test_create_plans_with_excludes(tmp_path):
     assert any(str(included_dir) in str(dir_) for dir_ in delete_plan)
 
 
+def test_create_plans_with_partial_excludes(tmp_path):
+    """Test create_plans where a file is excluded but its parent directory is not
+    included in excludes."""
+    # Create test structure
+    parent_dir = tmp_path / "parent"
+    excluded_file = parent_dir / "excluded.txt"
+    included_file = parent_dir / "included.txt"
+    parent_dir.mkdir()
+    excluded_file.touch()
+    included_file.touch()
+
+    settings = {
+        "source_dir": tmp_path,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {tmp_path / "documents": [".txt"]},
+        "unrecognized_file": tmp_path / "other",
+        "excludes": {excluded_file},
+    }
+
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify excluded file is not in transfer plan
+    assert not any(src == excluded_file for src, _ in transfer_plan)
+    # Verify included file is in transfer plan
+    assert any(src == included_file for src, _ in transfer_plan)
+    # Verify parent directory is in delete plan
+    assert parent_dir in delete_plan
+
+
+def test_create_plans_with_non_excluded_files(tmp_path):
+    """Test create_plans with files that are not relative to excluded paths."""
+    # Create test structure
+    excluded_dir = tmp_path / "excluded"
+    non_excluded_dir = tmp_path / "non_excluded"
+    excluded_dir.mkdir()
+    non_excluded_dir.mkdir()
+
+    # Create files in both directories
+    (excluded_dir / "test.txt").touch()
+    (non_excluded_dir / "test.txt").touch()
+
+    settings = {
+        "source_dir": tmp_path,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {tmp_path / "documents": [".txt"]},
+        "unrecognized_file": tmp_path / "other",
+        "excludes": {excluded_dir},
+    }
+
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify non-excluded file is in transfer plan
+    assert any(src == non_excluded_dir / "test.txt" for src, _ in transfer_plan)
+    # Verify excluded file is not in transfer plan
+    assert not any(src == excluded_dir / "test.txt" for src, _ in transfer_plan)
+
+
 def test_transfer_files_dry_run(tmp_path, test_logger):
     """Test transfer_files in dry run mode"""
     source_file = tmp_path / "source.txt"
@@ -165,7 +223,12 @@ def test_delete_dirs_comprehensive(tmp_path, test_logger):
     child_dir.mkdir()
     grandchild_dir.mkdir()
 
-    delete_plan = [grandchild_dir, child_dir, parent_dir, tmp_path / "nonexistent"]
+    delete_plan = [
+        grandchild_dir,
+        child_dir,
+        parent_dir,
+        tmp_path / "nonexistent",
+    ]
 
     # Test dry run
     num_deleted, total = delete_dirs(delete_plan, test_logger, dry_run=True)
@@ -239,9 +302,86 @@ def test_get_folder_path(tmp_path):
     assert get_folder_path(test_file, {}, unrecognized) == unrecognized
 
     # Test with matching extension
-    cleaning_plan = {docs_folder: [".txt"], images_folder: [".jpg", ".png"]}
+    cleaning_plan = {
+        docs_folder: [".txt"],
+        images_folder: [".jpg", ".png"],
+    }
     assert get_folder_path(test_file, cleaning_plan, unrecognized) == docs_folder
 
     # Test with non-matching extension
     test_file = tmp_path / "test.xyz"
     assert get_folder_path(test_file, cleaning_plan, unrecognized) == unrecognized
+
+
+def test_create_plans_without_excludes(tmp_path):
+    """Test create_plans when no excludes are provided."""
+    # Create test structure
+    test_dir = tmp_path / "test"
+    test_dir.mkdir()
+    (test_dir / "test.txt").touch()
+
+    settings = {
+        "source_dir": tmp_path,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {tmp_path / "documents": [".txt"]},
+        "unrecognized_file": tmp_path / "other",
+    }
+
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify file is in transfer plan
+    assert any(src == test_dir / "test.txt" for src, _ in transfer_plan)
+    # Verify directory is in delete plan
+    assert test_dir in delete_plan
+
+
+def test_create_plans_with_none_excludes(tmp_path):
+    """Test create_plans when excludes is None."""
+    # Create test structure
+    test_dir = tmp_path / "test"
+    test_dir.mkdir()
+    (test_dir / "test.txt").touch()
+
+    settings = {
+        "source_dir": tmp_path,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {tmp_path / "documents": [".txt"]},
+        "unrecognized_file": tmp_path / "other",
+        "excludes": None,
+    }
+
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify file is in transfer plan
+    assert any(src == test_dir / "test.txt" for src, _ in transfer_plan)
+    # Verify directory is in delete plan
+    assert test_dir in delete_plan
+
+
+def test_create_plans_with_symlink(tmp_path):
+    """Test create_plans with a symlink."""
+    # Create test structure
+    test_dir = tmp_path / "test"
+    test_dir.mkdir()
+    target_file = test_dir / "target.txt"
+    target_file.touch()
+    symlink = test_dir / "symlink.txt"
+    symlink.symlink_to(target_file)
+
+    settings = {
+        "source_dir": tmp_path,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {tmp_path / "documents": [".txt"]},
+        "unrecognized_file": tmp_path / "other",
+    }
+
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify symlink is not in transfer plan (it's a file but not a regular file)
+    assert not any(src == symlink for src, _ in transfer_plan)
+    # Verify target file is in transfer plan
+    assert any(src == target_file for src, _ in transfer_plan)
+    # Verify directory is in delete plan
+    assert test_dir in delete_plan
+    # Verify symlink is not in delete plan
+    assert not any(dir_ == symlink for dir_ in delete_plan)

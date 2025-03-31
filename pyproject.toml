@@ -69,7 +69,7 @@ path = "tidyfiles/__init__.py"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q --strict-markers --cov=tidyfiles --cov-report=term-missing --cov-report=xml --cov-report=html"
+addopts = "-ra -q --strict-markers --cov=tidyfiles --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
 pythonpath = ["."]
 

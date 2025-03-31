@@ -52,7 +52,7 @@ def create_plans(
     """
     transfer_plan = []
     delete_plan = []
-    excludes = kwargs.get("excludes", set())
+    excludes = kwargs.get("excludes", set()) or set()
 
     for filesystem_object in source_dir.rglob("*"):
         # Skip if the object is in excludes
@@ -61,7 +61,7 @@ def create_plans(
 
         if filesystem_object.is_dir():
             delete_plan.append(filesystem_object)
-        elif filesystem_object.is_file():
+        elif filesystem_object.is_file() and not filesystem_object.is_symlink():
             destination_folder = get_folder_path(
                 filesystem_object, cleaning_plan, unrecognized_file
             )
