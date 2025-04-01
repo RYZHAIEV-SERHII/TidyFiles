@@ -3,6 +3,7 @@
 ---
 
 ## 📁 Project Structure
+
 ```plaintext
 .
 ├── .github/                   # GitHub specific configurations
@@ -52,12 +53,14 @@
 ## 🔄 Core Components
 
 ### CLI Layer (`cli.py`)
+
 - Handles command-line arguments using Typer
 - Input validation and command routing
 - Provides rich terminal output using Rich
 - Main entry point via `tidyfiles` command
 
 ### Configuration (`config.py`)
+
 - Settings management with three-tier priority:
   1. CLI arguments (highest priority)
   2. User settings file (`~/.tidyfiles/settings.toml`)
@@ -67,12 +70,14 @@
 - Excludes handling for specific files/directories
 
 ### Operations (`operations.py`)
+
 - Core business logic for file organization
 - File type detection and categorization
 - Directory operations and file moving
 - Progress tracking and feedback
 
 ### Logging System (`logger.py`)
+
 - Dual logging system:
   - Console output with Rich integration
   - File logging with Loguru (`~/.tidyfiles/tidyfiles.log`)
@@ -82,6 +87,7 @@
 ---
 
 ## 🔀 Data Flow
+
 1. User input → CLI parser (`cli.py`)
 2. Settings resolution (`config.py`)
 3. Command validation → Operations (`operations.py`)
@@ -90,6 +96,7 @@
 ---
 
 ## 🧪 Testing Strategy
+
 - Unit tests with pytest
 - Integration tests for end-to-end workflows
 - Minimum 90% code coverage requirement
@@ -103,6 +110,7 @@
 ## 🛠️ Development Tools & Quality Assurance
 
 ### Pre-commit Hooks
+
 - Configuration in `.pre-commit-config.yaml`
 - Enforces:
   - YAML/TOML validation
@@ -113,11 +121,13 @@
   - Commit message validation
 
 ### Custom Git Hooks
+
 - Located in `.hooks/` directory
 - `commit-msg`: Validates semantic commit messages
 - Ensures consistent commit message format across the project
 
 ### Continuous Integration
+
 1. **Testing Workflow** (`tests.yml`):
    - Runs on multiple Python versions (3.10-3.13)
    - Executes test suite with pytest
@@ -132,6 +142,7 @@
    - PR comments with coverage details
 
 ### Documentation Structure
+
 - **Public Documentation**:
   - Contributing Guidelines
   - Code of Conduct
@@ -146,6 +157,7 @@
 ---
 
 ## 📦 Release Process
+
 - Automated releases via GitHub Actions
 - Branch-based release strategy:
   - `main`: Stable releases
@@ -158,6 +170,7 @@
 ---
 
 ## 🔒 Error Handling
+
 - Comprehensive input validation
 - Safe file operations with collision handling
 - Detailed error logging
@@ -166,6 +179,7 @@
 ---
 
 ## 🚀 Performance Considerations
+
 - Efficient file type detection
 - Progress feedback for large operations
 - Memory-efficient file handling

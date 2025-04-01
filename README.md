@@ -16,6 +16,7 @@
 **TidyFiles** is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder! It intelligently organizes files by type and keeps logs of all the sorting magic.
 
 ## 🌟 Features
+
 - **Smart Organization**: Automatically categorizes files by type (images, documents, videos, etc.)
 - **Dry Run Mode**: Preview changes with `--dry-run` before actual organization
 - **Flexible Configuration**: Customize source and destination directories
@@ -24,6 +25,7 @@
 - **Safe Operations**: Maintains file integrity during organization
 
 ## 🔧 Tech Stack
+
 - **Core Dependencies**
   - Python >=3.10: Modern Python features
   - Typer: Elegant CLI interface
@@ -43,16 +45,19 @@
 ## 🚀 Getting Started
 
 ### Installation
+
 ```bash
 pip install tidyfiles
 ```
 
 ### Basic Usage
+
 ```bash
 tidyfiles --source-dir /path/to/your/downloads
 ```
 
 ### Advanced Usage
+
 ```bash
 # Dry run to preview changes
 tidyfiles --source-dir ~/Downloads --dry-run
@@ -65,14 +70,18 @@ tidyfiles --source-dir ~/Downloads --log-console-level DEBUG
 ```
 
 ## 📁 Example Organization
-### Before:
+
+### Before
+
 ```plaintext
 Downloads/
 ├── photo.jpg
 ├── document.pdf
 ├── video.mp4
 ```
-### After:
+
+### After
+
 ```plaintext
 Downloads/
 ├── images/
@@ -84,25 +93,31 @@ Downloads/
 ```
 
 ## 📝 Logging
+
 TidyFiles generates detailed logs in:
+
 - Console output (configurable level)
 - Log file (`~/.tidyfiles/tidyfiles.log`)
 
 ## 🛠️ Contributing
+
 We welcome contributions! Check out our [Contributing Guidelines](CONTRIBUTING.md).
 
 ## 📄 License
+
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## 🎯 Roadmap & Development
 
 ### Upcoming Features (v0.7.0)
+
 - ↩️ **Reversible Operations**: Easily undo recent file organizations with `--undo` command.
 - 💾 **History System**: Browse and restore previous file organizations.
 - ⚡ **Reliable Processing**: Resume interrupted operations where they left off, ensuring operations can be continued or undone based on the saved history.
 - 🔐 **Safety Checks**: Verify file integrity before and after operations to ensure reliable processing.
 
 ### Future Roadmap (v0.8.0+)
+
 - 🛈 **Info Feature Expansion**: Enhance the info feature to provide detailed metadata and file information.
 - 🌐 **Multi-language Interface**: Switch between different languages using `--lang` flag for global accessibility.
 - 📁 **Custom Categories**: Define your own file categories and organization rules via simple configuration.
@@ -124,9 +139,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 For detailed version history and latest changes, see our [CHANGELOG](CHANGELOG.md) 📈
 
 ## 📊 Stats
+
 - **First Release**: March 2025
 - **Latest Version**: [![PyPI version](https://badge.fury.io/py/tidyfiles.svg)](https://badge.fury.io/py/tidyfiles)
 - **Python Compatibility**: [![Python 3.10-3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 - **Platform Support**: Windows, macOS, Linux
 
-#### Created with ❤️ by Serhii Ryzhaiev
+### Created with ❤️ by Serhii Ryzhaiev

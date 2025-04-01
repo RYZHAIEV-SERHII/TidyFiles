@@ -5,6 +5,7 @@
 First off, thank you for considering contributing to TidyFiles! 🎉
 
 ## Quick Links
+
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Development Guide](docs/internal/DEVELOPMENT.md)
 - [Release Workflow](docs/internal/RELEASE_WORKFLOW.md)
@@ -13,6 +14,7 @@ First off, thank you for considering contributing to TidyFiles! 🎉
 ---
 
 ## Ways to Contribute
+
 - Report bugs 🐞
 - Suggest features 💡
 - Improve documentation 📚
@@ -23,12 +25,14 @@ First off, thank you for considering contributing to TidyFiles! 🎉
 ## Development Setup
 
 1. **Fork and clone**:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/TidyFiles.git
    cd TidyFiles
    ```
 
 2. **Set up environment**:
+
    ```bash
    # Install uv if needed
    pip install uv
@@ -45,6 +49,7 @@ First off, thank you for considering contributing to TidyFiles! 🎉
    ```
 
 3. **Verify setup**:
+
    ```bash
    pytest
    ruff check .
@@ -61,6 +66,7 @@ First off, thank you for considering contributing to TidyFiles! 🎉
    - `main`: Bug fixes and docs
 
 2. **Create your branch**:
+
    ```bash
    # For features
    git checkout -b feature/name alpha/next
@@ -70,12 +76,14 @@ First off, thank you for considering contributing to TidyFiles! 🎉
    ```
 
 3. **Make changes and test**:
+
    ```bash
    pytest
    ruff check .
    ```
 
 4. **Commit with semantic messages**:
+
    ```bash
    # Features
    git commit -m "feat: add new feature"
@@ -88,14 +96,17 @@ First off, thank you for considering contributing to TidyFiles! 🎉
    ```
 
 5. **Push and create PR**:
+
    ```bash
    git push origin your-branch-name
    ```
+
    Then create PR on GitHub targeting appropriate branch.
 
 ---
 
 ## Dependency Groups
+
 - **Core**: `uv sync`
 - **Dev**: `uv sync --extras dev`
 - **Test**: `uv sync --extras test`
@@ -104,8 +115,10 @@ First off, thank you for considering contributing to TidyFiles! 🎉
 ---
 
 ## Release Process
+
 We follow semantic versioning with staged releases:
-```
+
+```code
 main → Stable (0.6.12)
 ├── rc/next → Release candidates (0.6.12rc1)
 ├── beta/next → Beta testing (0.6.12b1)
@@ -117,6 +130,7 @@ For detailed release procedures, see [Release Workflow](docs/internal/RELEASE_WO
 ---
 
 ## Need Help?
+
 - Open an issue for bugs/features
 - Start a discussion for questions
 - See [README.md](README.md) for more info
@@ -124,6 +138,7 @@ For detailed release procedures, see [Release Workflow](docs/internal/RELEASE_WO
 ---
 
 ## Code of Conduct
+
 All contributors must follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
