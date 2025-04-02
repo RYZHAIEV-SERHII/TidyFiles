@@ -11,7 +11,16 @@ from rich.console import Console
 from rich.panel import Panel
 from rich import box
 
-app = typer.Typer(help="TidyFiles - Organize your files automatically by type.")
+app = typer.Typer(
+    name="tidyfiles",
+    help="TidyFiles - Organize your files automatically by type.",
+    add_completion=False,
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    pretty_exceptions_show_locals=False,
+    pretty_exceptions_enable=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 console = Console()
 
 
@@ -35,6 +44,7 @@ def history(
         None,
         "--history-file",
         help="Path to the history file",
+        show_default=False,
     ),
     limit: int = typer.Option(
         10,
@@ -92,6 +102,7 @@ def undo(
         None,
         "--history-file",
         help="Path to the history file",
+        show_default=False,
     ),
 ):
     """Undo a file organization operation."""
@@ -149,13 +160,18 @@ def undo(
 def main(
     ctx: typer.Context,
     source_dir: str = typer.Option(
-        None, "--source-dir", "-s", help="Source directory to organize"
+        None,
+        "--source-dir",
+        "-s",
+        help="Source directory to organize",
+        show_default=False,
     ),
     destination_dir: str = typer.Option(
         None,
         "--destination-dir",
         "-d",
         help="Destination directory for organized files",
+        show_default=False,
     ),
     dry_run: bool = typer.Option(
         False, "--dry-run/--no-dry-run", help="Run in dry-run mode (no actual changes)"
@@ -164,6 +180,7 @@ def main(
         DEFAULT_SETTINGS["unrecognized_file_name"],
         "--unrecognized-dir",
         help="Directory name for unrecognized files",
+        show_default=False,
     ),
     log_console_output: bool = typer.Option(
         DEFAULT_SETTINGS["log_console_output_status"],
@@ -179,34 +196,40 @@ def main(
         DEFAULT_SETTINGS["log_console_level"],
         "--log-console-level",
         help="Console logging level",
+        show_default=False,
     ),
     log_file_level: str = typer.Option(
         DEFAULT_SETTINGS["log_file_level"],
         "--log-file-level",
         help="File logging level",
+        show_default=False,
     ),
     log_file_name: str = typer.Option(
         DEFAULT_SETTINGS["log_file_name"],
         "--log-file-name",
         help="Name of the log file",
+        show_default=False,
     ),
     log_folder_name: str = typer.Option(
-        None, "--log-folder", help="Folder for log files"
+        None, "--log-folder", help="Folder for log files", show_default=False
     ),
     settings_file_name: str = typer.Option(
         DEFAULT_SETTINGS["settings_file_name"],
         "--settings-file",
         help="Name of the settings file",
+        show_default=False,
     ),
     settings_folder_name: str = typer.Option(
         DEFAULT_SETTINGS["settings_folder_name"],
         "--settings-folder",
         help="Folder for settings file",
+        show_default=False,
     ),
     history_file: str = typer.Option(
         None,
         "--history-file",
         help="Path to the history file",
+        show_default=False,
     ),
     version: bool = typer.Option(
         None,
@@ -220,6 +243,7 @@ def main(
     """TidyFiles - Organize your files automatically by type."""
     # If no source_dir and no command is being executed, show help
     if not source_dir and not ctx.invoked_subcommand:
+        # Force help display with all options
         ctx.get_help()
         raise typer.Exit(0)
 
