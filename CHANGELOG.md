@@ -1,6 +1,54 @@
 # CHANGELOG
 
 
+## v0.7.0-a.1 (2025-04-02)
+
+### Bug Fixes
+
+- Enhance CLI options with default visibility and improved help display
+  ([`078c95c`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/078c95c62a114000ccf8f3a11f5d058dbca82856))
+
+### Documentation
+
+- Add comprehensive project documentation (architecture overview, code of conduct, and development
+  guidelines) and update existing.
+  ([`1ea7474`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/1ea747473e3875431c2c47c75114fe4b7fef58dc))
+
+- Enhance documentation with additional details and formatting improvements across multiple files
+  ([`a0ee26d`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/a0ee26d995965547d2a260a2e2677138bd1c0ec2))
+
+- Update contributing guidelines and branch selection process
+  ([`1965879`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/19658799af79ccb37482ecb94cbcdc8c0ea13144))
+
+- Update README.md with upcoming release plans
+  ([`319f4c1`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/319f4c1742a450a29e14e7d2f0bebdecb8310965))
+
+- Update release workflow documentation with version bumping rules and example workflows
+  ([`358c53e`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/358c53e14f3dda5358bb7abc1c7ff5562cb0c8fc))
+
+### Features
+
+- Implement operation history tracking with CLI commands for file management
+  ([`ecf17a2`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/ecf17a29568b68fbc5c8c7358b55c94ab3e4f9a0))
+
+### Testing
+
+- Add comprehensive tests for get_settings and load_settings functions to handle various edge cases
+  ([`4094346`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/40943467be3db0e014f49fb3efa74cdcdf52d939))
+
+- Add new tests for create_plans function to cover various exclude scenarios and enhance coverage
+  ([`4bdc1e0`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/4bdc1e07967e1b872440117164c4fc115d8c7cb7))
+
+- Enhance test coverage for CLI and configuration handling and operations
+  ([`e6f8cfb`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/e6f8cfbc84cc2ca49016e57c110c4ac1c33177c0))
+
+- Enhance test fixtures for better isolation and cleanup
+  ([`d117ad0`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/d117ad0a612a9c9c995fc56a9ce26268e047276b))
+
+- Update CLI tests for output consistency and add operation history tests
+  ([`460527f`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/460527f0965271464cea607f2ed04d68503f30b3))
+
+
 ## v0.6.12 (2025-03-26)
 
 ### Bug Fixes
