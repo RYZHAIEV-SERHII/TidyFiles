@@ -73,31 +73,102 @@ main        → Stable releases (0.6.12)
     - Creates GitHub release
     - Publishes to PyPI
 
-### Manual Steps for Release Promotion
+### Version Bumping Rules
 
-#### Alpha to Beta
+The semantic-release tool automatically determines version bumps based on commit messages:
 
-```bash
-git checkout beta/next
-git merge alpha/next
-git push origin beta/next
-```
+#### Commit Message Types and Version Impact
 
-#### Beta to RC
+- `feat:` → Minor version bump (0.6.12 → 0.7.0)
+  - Example: `feat: implement reversible operations`
+  - Creates: 0.7.0a1 (on alpha), 0.7.0b1 (on beta), 0.7.0rc1 (on rc), 0.7.0 (on main)
 
-```bash
-git checkout rc/next
-git merge beta/next
-git push origin rc/next
-```
+- `fix:` → Patch version bump (0.6.12 → 0.6.13)
+  - Example: `fix: history command not displaying`
+  - Creates: 0.6.12a2 (on alpha), 0.6.12b2 (on beta), 0.6.12rc2 (on rc), 0.6.12 (on main)
 
-#### RC to Stable
+- `BREAKING CHANGE:` or `feat!:` → Major version bump (0.6.12 → 1.0.0)
+  - Example: `feat!: remove deprecated API`
+  - Creates: 1.0.0a1 (on alpha), 1.0.0b1 (on beta), 1.0.0rc1 (on rc), 1.0.0 (on main)
 
-```bash
-git checkout main
-git merge rc/next
-git push origin main
-```
+#### Pre-release Version Flow
+
+1. **Alpha Stage** (`alpha/next`):
+   - Initial feature commit: `0.7.0a1`
+   - Subsequent fixes: `0.7.0a2`, `0.7.0a3`, etc.
+   - Example workflow:
+     ```bash
+     # On alpha/next
+     git commit -m "feat: implement reversible operations"
+     git push origin alpha/next
+     # Creates 0.7.0a1
+     git commit -m "fix: history command not displaying"
+     git push origin alpha/next
+     # Creates 0.7.0a2
+     ```
+
+2. **Beta Stage** (`beta/next`):
+   - Merge from alpha: `0.7.0b1`
+   - Subsequent fixes: `0.7.0b2`, `0.7.0b3`, etc.
+   - Example workflow:
+     ```bash
+     # Merge from alpha to beta
+     git checkout beta/next
+     git merge alpha/next
+     git push origin beta/next
+     # Creates 0.7.0b1
+     git commit -m "fix: handle edge cases"
+     git push origin beta/next
+     # Creates 0.7.0b2
+     ```
+
+3. **Release Candidate** (`rc/next`):
+   - Merge from beta: `0.7.0rc1`
+   - Subsequent fixes: `0.7.0rc2`, `0.7.0rc3`, etc.
+   - Example workflow:
+     ```bash
+     # Merge from beta to rc
+     git checkout rc/next
+     git merge beta/next
+     git push origin rc/next
+     # Creates 0.7.0rc1
+     git commit -m "docs: finalize documentation"
+     git push origin rc/next
+     # Creates 0.7.0rc2
+     ```
+
+4. **Stable Release** (`main`):
+   - Merge from rc: `0.7.0`
+   - Example workflow:
+     ```bash
+     # Merge from rc to main
+     git checkout main
+     git merge rc/next
+     git push origin main
+     # Creates 0.7.0
+     ```
+
+### Important Notes
+
+1. **Push Process**:
+   - Always push directly to the branch (e.g., `git push origin alpha/next`)
+   - The GitHub Actions workflow will handle the release process automatically
+   - Each push triggers a new release if the commit message warrants it
+
+2. **Merge Process**:
+   - Perform merges locally and push the result
+   - The workflow will create a new release based on the merge commit
+   - Example: `git merge alpha/next && git push origin beta/next`
+
+3. **Multiple Releases**:
+   - If you push multiple commits at once, each qualifying commit will trigger a release
+   - Releases are processed in chronological order
+   - Example: `git push --all` will trigger releases for each branch that has new commits
+
+4. **Release Order**:
+   - Releases are processed in the order they are pushed
+   - Each release is independent and won't block others
+   - The workflow includes concurrency control to prevent conflicts
 
 ---
 
