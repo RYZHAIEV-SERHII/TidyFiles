@@ -7,6 +7,7 @@ from tidyfiles.operations import (
     get_folder_path,
     transfer_files,
 )
+from tidyfiles.history import OperationHistory
 
 
 def test_create_plans_with_empty_dir(tmp_path):
@@ -385,3 +386,95 @@ def test_create_plans_with_symlink(tmp_path):
     assert test_dir in delete_plan
     # Verify symlink is not in delete plan
     assert not any(dir_ == symlink for dir_ in delete_plan)
+
+
+def test_transfer_files_with_history(tmp_path, test_logger):
+    """Test transfer_files with history tracking."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("test content")
+    dest_dir = tmp_path / "dest"
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    transfer_plan = [(source_file, dest_dir / "source.txt")]
+    num_transferred, total = transfer_files(
+        transfer_plan, test_logger, dry_run=False, history=history
+    )
+
+    assert num_transferred == 1
+    assert total == 1
+    assert (dest_dir / "source.txt").exists()
+
+    # Check history
+    assert len(history.operations) == 1
+    operation = history.operations[0]
+    assert operation["type"] == "move"
+    assert operation["source"] == str(source_file)
+    assert operation["destination"] == str(dest_dir / "source.txt")
+    assert operation["status"] == "completed"
+
+
+def test_delete_dirs_with_history(tmp_path, test_logger):
+    """Test delete_dirs with history tracking."""
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    delete_plan = [test_dir]
+    num_deleted, total = delete_dirs(
+        delete_plan, test_logger, dry_run=False, history=history
+    )
+
+    assert num_deleted == 1
+    assert total == 1
+    assert not test_dir.exists()
+
+    # Check history
+    assert len(history.operations) == 1
+    operation = history.operations[0]
+    assert operation["type"] == "delete"
+    assert operation["source"] == str(test_dir)
+    assert operation["destination"] == str(test_dir)
+    assert operation["status"] == "completed"
+
+
+def test_transfer_files_with_history_dry_run(tmp_path, test_logger):
+    """Test transfer_files with history tracking in dry-run mode."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("test content")
+    dest_dir = tmp_path / "dest"
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    transfer_plan = [(source_file, dest_dir / "source.txt")]
+    num_transferred, total = transfer_files(
+        transfer_plan, test_logger, dry_run=True, history=history
+    )
+
+    assert num_transferred == 0
+    assert total == 1
+    assert not (dest_dir / "source.txt").exists()
+
+    # Check that no history was recorded in dry-run mode
+    assert len(history.operations) == 0
+
+
+def test_delete_dirs_with_history_dry_run(tmp_path, test_logger):
+    """Test delete_dirs with history tracking in dry-run mode."""
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    delete_plan = [test_dir]
+    num_deleted, total = delete_dirs(
+        delete_plan, test_logger, dry_run=True, history=history
+    )
+
+    assert num_deleted == 0
+    assert total == 1
+    assert test_dir.exists()
+
+    # Check that no history was recorded in dry-run mode
+    assert len(history.operations) == 0

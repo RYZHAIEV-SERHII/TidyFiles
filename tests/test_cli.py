@@ -23,8 +23,8 @@ def test_no_source_dir():
     """Test behavior when no source directory is provided"""
     result = runner.invoke(app)
     assert result.exit_code == 0
-    assert "Usage:" in result.stdout
-    assert "TidyFiles" in result.stdout
+    assert "Usage:" in result.output
+    assert "--source-dir" in result.output
 
 
 def test_print_welcome_message(capsys):
@@ -50,8 +50,8 @@ def test_main_with_invalid_inputs(tmp_path):
     """Test various invalid input scenarios"""
     # Test invalid source directory
     result = runner.invoke(app, ["--source-dir", "/nonexistent/path"])
-    assert result.exit_code != 0
-    assert "Source directory does not exist" in str(result.exception)
+    assert result.exit_code == 1
+    assert "Source directory does not exist" in result.output
 
     # Test invalid log level
     result = runner.invoke(
@@ -77,7 +77,7 @@ def test_main_with_dry_run_scenarios(tmp_path):
 
     result = runner.invoke(app, ["--source-dir", str(source_dir), "--dry-run"])
     assert result.exit_code == 0
-    assert "DRY RUN MODE" in result.stdout
+    assert "DRY RUN MODE" in result.output
 
     # Dry run with destination
     dest_dir = tmp_path / "dest"
@@ -92,7 +92,7 @@ def test_main_with_dry_run_scenarios(tmp_path):
         ],
     )
     assert result.exit_code == 0
-    assert "DRY RUN MODE" in result.stdout
+    assert "DRY RUN MODE" in result.output
 
 
 def test_main_with_complete_execution(tmp_path):
@@ -120,42 +120,12 @@ def test_main_with_complete_execution(tmp_path):
     )
 
     assert result.exit_code == 0
-    assert "Files transferred:" in result.stdout
+    assert "LIVE MODE" in result.output
 
 
-def test_main_exit_case(monkeypatch):
-    """Test that ctx.exit() is called when no source_dir and no version flag"""
-    from tidyfiles.cli import main
-
-    class MockContext:
-        def __init__(self):
-            self.called_help = False
-            self.called_exit = False
-
-        def get_help(self):
-            self.called_help = True
-
-        def exit(self):
-            self.called_exit = True
-
-    mock_ctx = MockContext()
-
-    main(
-        ctx=mock_ctx,
-        source_dir=None,
-        destination_dir=None,
-        dry_run=False,
-        unrecognized_file_name="unrecognized",
-        log_console_output=True,
-        log_file_output=True,
-        log_console_level="INFO",
-        log_file_level="INFO",
-        log_file_name="test.log",
-        log_folder_name=None,
-        settings_file_name="settings.json",
-        settings_folder_name="settings",
-        version=None,
-    )
-
-    assert mock_ctx.called_help is True
-    assert mock_ctx.called_exit is True
+def test_main_exit_case():
+    """Test that help is shown when no source_dir and no version flag"""
+    result = runner.invoke(app)
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+    assert "--source-dir" in result.output
