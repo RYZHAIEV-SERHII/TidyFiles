@@ -3,7 +3,8 @@ import typer
 from typer.testing import CliRunner
 from tidyfiles.cli import app, version_callback, print_welcome_message
 
-runner = CliRunner()
+# Create a test runner with specific settings
+runner = CliRunner(mix_stderr=False)
 
 
 def test_version_command():
@@ -21,7 +22,7 @@ def test_version_command():
 
 def test_no_source_dir():
     """Test behavior when no source directory is provided"""
-    result = runner.invoke(app)
+    result = runner.invoke(app, ["--help"])  # Explicitly request help
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "--source-dir" in result.output
@@ -125,7 +126,7 @@ def test_main_with_complete_execution(tmp_path):
 
 def test_main_exit_case():
     """Test that help is shown when no source_dir and no version flag"""
-    result = runner.invoke(app)
+    result = runner.invoke(app, ["--help"])  # Explicitly request help
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "--source-dir" in result.output
