@@ -11,7 +11,7 @@ def get_logger(
     log_file_output_status: bool = True,
     log_console_level: str = "WARNING",
     log_file_level: str = "DEBUG",
-    log_file_mode: str = "w",
+    log_file_mode: str = "a",
     **kwargs,
 ) -> Optional[logger]:
     """
@@ -25,7 +25,7 @@ def get_logger(
         log_file_output_status (bool): Whether to output logs to file. Defaults to True.
         log_console_level (str): Logging level for console. Defaults to WARNING.
         log_file_level (str): Logging level for file. Defaults to DEBUG.
-        log_file_mode (str): Mode for logging to file. Defaults to w.
+        log_file_mode (str): Mode for logging to file. Defaults to 'a'.
         **kwargs: Additional args for logger. Used just for simplifying settings passing.
 
     Returns:

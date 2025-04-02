@@ -5,6 +5,8 @@ import loguru
 from rich.console import Console
 from rich.panel import Panel
 
+from .history import OperationHistory
+
 console = Console()
 
 
@@ -73,7 +75,10 @@ def create_plans(
 
 
 def transfer_files(
-    transfer_plan: list[tuple[Path, Path]], logger: loguru.logger, dry_run: bool
+    transfer_plan: list[tuple[Path, Path]],
+    logger: loguru.logger,
+    dry_run: bool,
+    history: OperationHistory = None,
 ) -> tuple[int, int]:
     """
     Move files to designated folders based on sorting plan.
@@ -89,6 +94,7 @@ def transfer_files(
         logger (loguru.logger): The logger to use for logging.
         dry_run (bool): Whether to perform a dry run (i.e. do not actually move
             the files).
+        history (OperationHistory, optional): History tracker for operations.
 
     Returns:
         tuple[int, int]: A tuple containing the number of files transferred and
@@ -117,6 +123,8 @@ def transfer_files(
                 operations.append(f"[green]{msg}[/green]")
                 logger.info(msg)
                 num_transferred_files += 1
+                if history:
+                    history.add_operation("move", source, destination)
             except Exception as e:
                 error_msg = (
                     f"MOVE_FILE [FAILED] | FROM: {source} | "
@@ -151,7 +159,10 @@ def transfer_files(
 
 
 def delete_dirs(
-    delete_plan: list[Path], logger: loguru.logger, dry_run: bool
+    delete_plan: list[Path],
+    logger: loguru.logger,
+    dry_run: bool,
+    history: OperationHistory = None,
 ) -> tuple[int, int]:
     """
     Delete empty directories after moving files.
@@ -161,6 +172,7 @@ def delete_dirs(
         logger (loguru.logger): The logger to use for logging.
         dry_run (bool): Whether to perform a dry run (i.e. do not actually delete
             the directories).
+        history (OperationHistory, optional): History tracker for operations.
 
     Returns:
         tuple[int, int]: A tuple containing the number of directories deleted and
@@ -195,6 +207,8 @@ def delete_dirs(
                     operations.append(f"[green]{msg}[/green]")
                     logger.info(msg)
                     num_deleted_directories += 1
+                    if history:
+                        history.add_operation("delete", directory, directory)
             except Exception as e:
                 error_msg = f"DELETE_DIR [FAILED] | PATH: {directory} | ERROR: {str(e)}"
                 operations.append(f"[red]{error_msg}[/red]")

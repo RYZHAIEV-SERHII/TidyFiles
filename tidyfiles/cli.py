@@ -1,8 +1,12 @@
 import typer
+from pathlib import Path
+from datetime import datetime
+from rich.table import Table
 from tidyfiles import __version__
 from tidyfiles.config import get_settings, DEFAULT_SETTINGS
 from tidyfiles.logger import get_logger
 from tidyfiles.operations import create_plans, transfer_files, delete_dirs
+from tidyfiles.history import OperationHistory
 from rich.console import Console
 from rich.panel import Panel
 from rich import box
@@ -15,6 +19,130 @@ def version_callback(value: bool):
     if value:
         typer.echo(f"TidyFiles version: {__version__}")
         raise typer.Exit()
+
+
+def get_default_history_file() -> Path:
+    """Get the default history file path."""
+    return (
+        Path(DEFAULT_SETTINGS["history_folder_name"])
+        / DEFAULT_SETTINGS["history_file_name"]
+    )
+
+
+@app.command()
+def history(
+    history_file: str = typer.Option(
+        None,
+        "--history-file",
+        help="Path to the history file",
+    ),
+    limit: int = typer.Option(
+        10,
+        "--limit",
+        "-l",
+        help="Number of operations to show",
+    ),
+):
+    """Show the history of file operations."""
+    if history_file is None:
+        history_file = get_default_history_file()
+    else:
+        history_file = Path(history_file)
+
+    history = OperationHistory(history_file)
+    operations = history.operations[-limit:] if limit > 0 else history.operations
+
+    if not operations:
+        console.print("[yellow]No operations in history[/yellow]")
+        return
+
+    table = Table(title="Operation History")
+    table.add_column("#", justify="right", style="cyan")
+    table.add_column("Date", style="magenta")
+    table.add_column("Time", style="magenta")
+    table.add_column("Type", style="green")
+    table.add_column("Source", style="blue")
+    table.add_column("Destination", style="blue")
+    table.add_column("Status", style="yellow")
+
+    for i, op in enumerate(reversed(operations), 1):
+        timestamp = datetime.fromisoformat(op["timestamp"])
+        table.add_row(
+            str(i),
+            timestamp.strftime("%Y-%m-%d"),
+            timestamp.strftime("%H:%M:%S"),
+            op["type"],
+            op["source"],
+            op["destination"],
+            op["status"],
+        )
+
+    console.print(table)
+
+
+@app.command()
+def undo(
+    operation_number: int = typer.Option(
+        None,
+        "--number",
+        "-n",
+        help="Operation number to undo (from history command)",
+    ),
+    history_file: str = typer.Option(
+        None,
+        "--history-file",
+        help="Path to the history file",
+    ),
+):
+    """Undo a file organization operation."""
+    if history_file is None:
+        history_file = get_default_history_file()
+    else:
+        history_file = Path(history_file)
+
+    history = OperationHistory(history_file)
+
+    if operation_number is not None:
+        # Undo specific operation
+        if operation_number < 1 or operation_number > len(history.operations):
+            console.print(f"[red]Invalid operation number: {operation_number}[/red]")
+            return
+
+        # Get the operation to undo (operations are stored in chronological order)
+        operation = history.operations[-operation_number]
+    else:
+        # Undo last operation
+        operation = history.get_last_operation()
+        if not operation:
+            console.print("[yellow]No operations to undo[/yellow]")
+            return
+
+    console.print(
+        Panel(
+            f"Operation to undo:\n"
+            f"Type: [cyan]{operation['type']}[/cyan]\n"
+            f"Source: [blue]{operation['source']}[/blue]\n"
+            f"Destination: [blue]{operation['destination']}[/blue]\n"
+            f"Time: [dim]{operation['timestamp']}[/dim]",
+            title="[bold cyan]Undo Operation[/bold cyan]",
+            box=box.ROUNDED,
+        )
+    )
+
+    if typer.confirm("Do you want to undo this operation?"):
+        if operation_number is not None:
+            # For specific operation, we need to undo all operations up to that point
+            for _ in range(operation_number):
+                if not history.undo_last_operation():
+                    console.print("[red]Failed to undo operation[/red]")
+                    return
+        else:
+            if not history.undo_last_operation():
+                console.print("[red]Failed to undo operation[/red]")
+                return
+        console.print("[green]Operation successfully undone![/green]")
+    else:
+        console.print("[yellow]Operation cancelled[/yellow]")
 
 
 @app.callback(invoke_without_command=True)
@@ -75,6 +203,11 @@ def main(
         "--settings-folder",
         help="Folder for settings file",
     ),
+    history_file: str = typer.Option(
+        None,
+        "--history-file",
+        help="Path to the history file",
+    ),
     version: bool = typer.Option(
         None,
         "--version",
@@ -85,11 +218,19 @@ def main(
     ),
 ):
     """TidyFiles - Organize your files automatically by type."""
-    if not source_dir and not version:
+    # If no source_dir and no command is being executed, show help
+    if not source_dir and not ctx.invoked_subcommand:
         ctx.get_help()
-        ctx.exit()  # Ensure the exit is called after displaying help
+        raise typer.Exit(0)
 
+    # If source_dir is provided, proceed with file organization
     if source_dir:
+        # Validate source directory
+        source_path = Path(source_dir)
+        if not source_path.exists():
+            console.print(f"[red]Source directory does not exist: {source_dir}[/red]")
+            raise typer.Exit(1)
+
         # Get settings with CLI arguments
         settings = get_settings(
             source_dir=source_dir,
@@ -113,14 +254,24 @@ def main(
 
         logger = get_logger(**settings)
 
+        # Initialize history system if not in dry-run mode
+        history = None
+        if not dry_run:
+            history_file_path = (
+                Path(history_file) if history_file else get_default_history_file()
+            )
+            history = OperationHistory(history_file_path)
+
         # Create plans for file transfer and directory deletion
         transfer_plan, delete_plan = create_plans(**settings)
 
         # Process files and directories
         num_transferred_files, total_files = transfer_files(
-            transfer_plan, logger, dry_run
+            transfer_plan, logger, dry_run, history
         )
-        num_deleted_dirs, total_directories = delete_dirs(delete_plan, logger, dry_run)
+        num_deleted_dirs, total_directories = delete_dirs(
+            delete_plan, logger, dry_run, history
+        )
 
         if not dry_run:
             final_summary = (
