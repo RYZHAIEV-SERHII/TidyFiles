@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.7.0-b.1 (2025-04-03)
+
+### Features
+
+- Enhance CLI history and undo commands with session management and detailed output
+  ([`23c263c`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/23c263c8bf1a4995c556705518bb2f6d8bdd0dbd))
+
+- Enhance session management in CLI with detailed session info and improved operation handling
+  ([`4e09ee2`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/4e09ee2e15d1aee7a1d521a0572d6a90db202681))
+
+### Testing
+
+- Enhance CLI tests to suppress Rich formatting and improve help command consistency
+  ([`da43b2b`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/da43b2bedcfeeb17d3bab241775145b93c466736))
+
+- Update CLI tests to explicitly request help and improve runner settings
+  ([`bca1770`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/bca177003ee6e830ed5647876809d99f419b0ac3))
+
+- Update CLI tests to set TERM environment variable and clean output for help command
+  ([`42a57b3`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/42a57b3a9f4f971a3fd7885d92733c250bc9a40e))
+
+
 ## v0.7.0-a.1 (2025-04-02)
 
 ### Bug Fixes
