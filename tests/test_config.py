@@ -1,21 +1,25 @@
+import os
 import pytest
+import toml
 from pathlib import Path
+from unittest.mock import patch
 from tidyfiles.config import (
     get_settings,
     save_settings,
     load_settings,
-    DEFAULT_CLEANING_PLAN,
+    DEFAULT_SETTINGS,
 )
 
 
-def test_get_settings_with_custom_cleaning_plan(tmp_path):
+def test_get_settings_custom_configuration(tmp_path):
+    """Test get_settings with custom configurations"""
+    # Test custom cleaning plan
     custom_plan = {"custom": [".xyz", ".abc"], "special": [".spec"]}
     settings = get_settings(source_dir=str(tmp_path), cleaning_plan=custom_plan)
     assert "custom" in str(list(settings["cleaning_plan"].keys())[0])
     assert "special" in str(list(settings["cleaning_plan"].keys())[1])
 
-
-def test_get_settings_with_excludes(tmp_path):
+    # Test excludes
     excludes = [".git", "node_modules"]
     settings = get_settings(source_dir=str(tmp_path), excludes=excludes)
     assert len(settings["excludes"]) >= len(excludes)
@@ -23,68 +27,33 @@ def test_get_settings_with_excludes(tmp_path):
         assert any(exclude in str(path) for path in settings["excludes"])
 
 
-def test_get_settings_with_custom_unrecognized(tmp_path):
-    unrecognized = "unknown_files"
-    settings = get_settings(
-        source_dir=str(tmp_path), unrecognized_file_name=unrecognized
-    )
-    assert unrecognized in str(settings["unrecognized_file"])
-
-
-def test_get_settings_with_custom_destination(tmp_path):
-    dest_dir = tmp_path / "organized"
-    settings = get_settings(source_dir=str(tmp_path), destination_dir=str(dest_dir))
-    assert str(dest_dir) in str(settings["destination_dir"])
-
-
-def test_get_settings_with_invalid_source():
-    with pytest.raises((ValueError, FileNotFoundError)):
-        get_settings(source_dir="/this/path/definitely/does/not/exist")
-
-
-def test_default_cleaning_plan():
-    """Test default cleaning plan structure."""
-    assert ".pdf" in DEFAULT_CLEANING_PLAN["documents"]
-    assert ".jpg" in DEFAULT_CLEANING_PLAN["images"]
-    assert ".mp4" in DEFAULT_CLEANING_PLAN["videos"]
-
-
-def test_save_settings_with_custom_path(tmp_path):
-    settings = {"test_key": "test_value"}
-    settings_path = tmp_path / "custom_settings.toml"
-    save_settings(settings, settings_path)
-    assert settings_path.exists()
-    loaded_settings = load_settings(settings_path)
-    assert loaded_settings["test_key"] == "test_value"
-
-
-def test_save_settings_with_mkdir_error(tmp_path, monkeypatch):
-    def mock_mkdir(*args, **kwargs):
-        raise PermissionError("Access denied")
-
-    monkeypatch.setattr(Path, "mkdir", mock_mkdir)
-
-    settings = {"test": "value"}
-    settings_path = tmp_path / "subdir" / "settings.toml"
-
-    with pytest.raises(PermissionError):
-        save_settings(settings, settings_path)
-
-
-def test_get_settings_with_invalid_source_dir():
+def test_get_settings_validation(tmp_path):
+    """Test get_settings input validation"""
+    # Test invalid source directory scenarios
     with pytest.raises(ValueError):
         get_settings(source_dir=None)
-
-
-def test_get_settings_with_empty_source_dir():
     with pytest.raises(ValueError):
         get_settings(source_dir="")
+    with pytest.raises(FileNotFoundError):
+        get_settings(source_dir="/nonexistent/path")
+
+    # Test file as source instead of directory
+    source_file = tmp_path / "file.txt"
+    source_file.touch()
+    with pytest.raises(ValueError) as exc_info:
+        get_settings(source_dir=str(source_file))
+    assert "not a directory" in str(exc_info.value)
 
 
-def test_get_settings_with_all_parameters():
+def test_get_settings_comprehensive(tmp_path):
+    """Test get_settings comprehensively"""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Test with all parameters
     settings = get_settings(
-        source_dir="/tmp",
-        destination_dir="/tmp/dest",
+        source_dir=str(source_dir),
+        destination_dir=str(source_dir / "dest"),
         cleaning_plan={"documents": [".txt"]},
         unrecognized_file_name="unknown",
         log_console_output_status=True,
@@ -92,145 +61,293 @@ def test_get_settings_with_all_parameters():
         log_console_level="DEBUG",
         log_file_level="INFO",
         log_file_name="test.log",
-        log_folder_name="/tmp/logs",
+        log_folder_name=str(source_dir / "logs"),
         log_file_mode="w",
         settings_file_name="settings.toml",
-        settings_folder_name="/tmp/config",
+        settings_folder_name=str(source_dir / "config"),
         excludes=["/tmp/exclude"],
     )
-    assert isinstance(settings, dict)
-    assert settings["source_dir"] == Path("/tmp").resolve()
+    assert settings["log_console_level"] == "DEBUG"
+
+    # Test with None settings_folder_name
+    settings_none = get_settings(
+        source_dir=str(source_dir),
+        settings_folder_name=None,
+        settings_file_name="test_settings.toml",
+    )
+    assert settings_none["settings_file_path"].name == "test_settings.toml"
+    assert settings_none["settings_file_path"].is_absolute()
 
 
-def test_load_settings_file_not_found(tmp_path):
-    """Test loading settings from a non-existent file."""
-    settings = load_settings(tmp_path / "nonexistent.toml")
-    # Since load_settings creates default settings when file doesn't exist,
-    # we should check for default values instead of empty dict
-    assert "log_console_level" in settings
-    assert "log_file_level" in settings
-    assert settings["log_console_level"] == "WARNING"
-    assert settings["log_file_level"] == "DEBUG"
+def test_settings_file_operations_and_errors(tmp_path, monkeypatch):
+    """Test settings file operations and error handling"""
+    # Basic save and load
+    settings = {"test_key": "test_value"}
+    settings_path = tmp_path / "settings.toml"
+    save_settings(settings, settings_path)
+    assert settings_path.exists()
+    loaded_settings = load_settings(settings_path)
+    assert loaded_settings["test_key"] == "test_value"
 
+    # Test None path - should use mocked DEFAULT_SETTINGS_PATH
+    mock_default_path = tmp_path / "default_settings.toml"
+    monkeypatch.setattr("tidyfiles.config.DEFAULT_SETTINGS_PATH", mock_default_path)
 
-def test_save_settings_with_permission_error(tmp_path, monkeypatch):
-    """Test saving settings with permission error."""
+    test_settings = {"test": "value"}
+    save_settings(test_settings, None)
+    loaded = load_settings(None)
+    assert loaded["test"] == "value"
+    assert mock_default_path.exists()
 
-    def mock_open(*args, **kwargs):
+    # Test invalid TOML
+    invalid_toml = tmp_path / "invalid.toml"
+    invalid_toml.write_text("invalid [ toml content")
+    with pytest.raises(RuntimeError) as exc_info:
+        load_settings(invalid_toml)
+    assert "Failed to load settings" in str(exc_info.value)
+
+    # Test permission errors
+    settings_file = tmp_path / "no_access.toml"
+    settings_file.write_text("valid = true")
+    os.chmod(settings_file, 0o000)
+    try:
+        with pytest.raises(RuntimeError):
+            load_settings(settings_file)
+    finally:
+        os.chmod(settings_file, 0o666)
+
+    def mock_open_error(*args, **kwargs):
         raise PermissionError("Permission denied")
 
-    monkeypatch.setattr("builtins.open", mock_open)
+    monkeypatch.setattr("builtins.open", mock_open_error)
     with pytest.raises(PermissionError):
         save_settings({"test": "value"}, tmp_path / "settings.toml")
 
+    # Test directory creation error
+    def mock_mkdir(*args, **kwargs):
+        raise PermissionError("Access denied")
 
-def test_get_settings_with_invalid_log_levels(tmp_path):
-    """Test get_settings with invalid log levels."""
-    # Since the function might not validate log levels directly,
-    # let's test if it passes the values to the logger setup
-    settings = get_settings(source_dir=str(tmp_path), log_console_level="INVALID_LEVEL")
-    assert settings["log_console_level"] == "INVALID_LEVEL"
-
-
-def test_save_settings_with_file_error(tmp_path, monkeypatch):
-    """Test save_settings with file write error"""
-
-    def mock_open(*args, **kwargs):
-        raise OSError("File write error")
-
-    monkeypatch.setattr("builtins.open", mock_open)
-    with pytest.raises(OSError):
-        save_settings({"test": "value"}, tmp_path / "settings.toml")
+    monkeypatch.setattr(Path, "mkdir", mock_mkdir)
+    with pytest.raises(PermissionError):
+        save_settings({"test": "value"}, tmp_path / "subdir" / "settings.toml")
 
 
-def test_get_settings_with_invalid_paths(tmp_path, monkeypatch):
-    """Test get_settings with invalid path combinations"""
-    # Test with non-existent source directory
-    with pytest.raises(FileNotFoundError):
-        get_settings(source_dir="/this/path/definitely/does/not/exist")
+def test_load_settings_none_path(temp_dir):
+    """Test load_settings with None path"""
+    settings_path = temp_dir / ".tidyfiles" / "settings.toml"
 
-    # Create source dir but make destination creation fail
+    with patch("tidyfiles.config.DEFAULT_SETTINGS_PATH", settings_path):
+        # Test loading settings with None path - should create default settings
+        loaded_settings = load_settings(None)
+
+        # Verify that all default settings are present
+        assert loaded_settings == DEFAULT_SETTINGS
+
+        # Verify the file was created in the correct location
+        assert settings_path.exists()
+
+        # Verify the content matches DEFAULT_SETTINGS
+        saved_settings = toml.loads(settings_path.read_text())
+        assert saved_settings == DEFAULT_SETTINGS
+
+        # Test loading again from the created file
+        reloaded_settings = load_settings(None)
+        assert reloaded_settings == DEFAULT_SETTINGS
+
+    # Clean up
+    if settings_path.exists():
+        settings_path.unlink()
+    if settings_path.parent.exists():
+        settings_path.parent.rmdir()
+
+
+def test_get_settings_destination_errors(tmp_path, monkeypatch):
+    """Test get_settings destination directory error handling"""
     source_dir = tmp_path / "source"
     source_dir.mkdir()
+    dest_dir = tmp_path / "dest"
+
+    # Test file instead of directory
+    dest_dir.touch()
+    with pytest.raises(ValueError) as exc_info:
+        get_settings(source_dir=str(source_dir), destination_dir=str(dest_dir))
+    assert "not a directory" in str(exc_info.value)
+
+    # Test permission error on destination creation
+    dest_dir.unlink()
 
     def mock_mkdir(*args, **kwargs):
         raise PermissionError("Access denied")
 
-    def mock_exists(self):
-        # Return True for source directory, False for destination
-        return str(self) == str(source_dir)
-
-    def mock_is_dir(self):
-        return str(self) == str(source_dir)
-
     monkeypatch.setattr(Path, "mkdir", mock_mkdir)
-    monkeypatch.setattr(Path, "exists", mock_exists)
-    monkeypatch.setattr(Path, "is_dir", mock_is_dir)
-
     with pytest.raises(ValueError) as exc_info:
-        get_settings(source_dir=str(source_dir), destination_dir="/root/forbidden")
+        get_settings(source_dir=str(source_dir), destination_dir=str(dest_dir))
     assert "Cannot create destination directory" in str(exc_info.value)
 
 
-def test_get_settings_with_non_directory_source(tmp_path):
-    """Test get_settings with a file instead of directory as source"""
-    # Create a file instead of directory
-    source_file = tmp_path / "file.txt"
-    source_file.touch()
-
-    with pytest.raises(ValueError) as exc_info:
-        get_settings(source_dir=str(source_file))
-    assert "not a directory" in str(exc_info.value)
-
-
-def test_get_settings_with_non_directory_destination(tmp_path):
-    """Test get_settings with a file instead of directory as destination"""
-    # Create source directory
+def test_get_settings_with_empty_strings(tmp_path):
+    """Test get_settings with empty strings in settings."""
     source_dir = tmp_path / "source"
     source_dir.mkdir()
 
-    # Create a file instead of directory for destination
-    dest_file = tmp_path / "dest.txt"
-    dest_file.touch()
-
-    with pytest.raises(ValueError) as exc_info:
-        get_settings(source_dir=str(source_dir), destination_dir=str(dest_file))
-    assert "not a directory" in str(exc_info.value)
-
-
-def test_get_settings_with_custom_settings_file(tmp_path):
-    """Test get_settings with a custom settings file"""
-    source_dir = tmp_path / "source"
-    source_dir.mkdir()
-
-    settings_folder = tmp_path / ".tidyfiles"
-    settings_folder.mkdir(parents=True, exist_ok=True)
-    settings_file = settings_folder / "settings.toml"
-
-    # Create a complete settings file
-    with open(settings_file, "w") as f:
-        f.write("""
-source_dir = ""
-destination_dir = ""
-log_console_level = "DEBUG"
-log_file_level = "INFO"
-unrecognized_file_name = "custom_other"
-log_console_output_status = true
-log_file_output_status = true
-log_file_name = "test.log"
-log_file_mode = "w"
-excludes = []
-""")
-
+    # Test with empty strings
     settings = get_settings(
         source_dir=str(source_dir),
-        settings_folder_name=str(settings_folder),
-        settings_file_name="settings.toml",
-        log_console_level="DEBUG",  # Need to set explicitly since CLI args take precedence
-        log_file_level="INFO",
-        unrecognized_file_name="custom_other",  # Added this parameter
+        settings_folder_name=str(tmp_path / "config"),  # Use tmp_path instead of root
+        settings_file_name="test.toml",
+        log_folder_name=str(tmp_path / "logs"),  # Use tmp_path instead of root
+        log_file_name="test.log",
+        destination_dir="",
     )
 
-    assert settings["log_console_level"] == "DEBUG"
-    assert settings["log_file_level"] == "INFO"
-    assert settings["unrecognized_file"].name == "custom_other"
+    # Verify paths are resolved correctly
+    assert settings["settings_file_path"].name == "test.toml"
+    assert settings["settings_file_path"].parent == tmp_path / "config"
+    assert settings["log_file_path"].name == "test.log"
+    assert settings["log_file_path"].parent == tmp_path / "logs"
+    assert settings["destination_dir"] == source_dir  # Should fall back to source_dir
+
+
+def test_load_settings_with_nonexistent_path(tmp_path):
+    """Test load_settings with a path that doesn't exist."""
+    nonexistent_path = tmp_path / "nonexistent" / "settings.toml"
+    settings = load_settings(nonexistent_path)
+    assert settings == DEFAULT_SETTINGS
+    assert nonexistent_path.exists()
+    assert nonexistent_path.parent.exists()
+
+
+def test_save_settings_with_write_error(tmp_path, monkeypatch):
+    """Test save_settings with write errors."""
+    settings_path = tmp_path / "settings.toml"
+
+    def mock_write(*args, **kwargs):
+        raise OSError("Write error")
+
+    # Mock the write method to raise an error
+    monkeypatch.setattr(
+        "builtins.open",
+        lambda *args, **kwargs: type(
+            "MockFile",
+            (),
+            {
+                "write": mock_write,
+                "__enter__": lambda x: x,
+                "__exit__": lambda *args: None,
+            },
+        )(),
+    )
+
+    with pytest.raises(OSError):
+        save_settings({"test": "value"}, settings_path)
+
+
+def test_get_settings_with_none_values(tmp_path):
+    """Test get_settings with None values."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Mock both Path.home() and DEFAULT_SETTINGS
+    mock_default_settings = DEFAULT_SETTINGS.copy()
+    mock_default_settings["log_folder_name"] = str(tmp_path / ".tidyfiles")
+
+    with patch("pathlib.Path.home", return_value=tmp_path), patch(
+        "tidyfiles.config.DEFAULT_SETTINGS", mock_default_settings
+    ):
+        # Test with None values for optional parameters
+        settings = get_settings(
+            source_dir=str(source_dir),
+            destination_dir=None,
+            cleaning_plan=None,
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+            log_folder_name=str(tmp_path / "logs"),  # Use tmp_path instead of root
+            excludes=None,
+        )
+
+        # Verify defaults are used
+        assert settings["destination_dir"] == source_dir
+        assert settings["cleaning_plan"]  # Should use DEFAULT_CLEANING_PLAN
+        assert settings["settings_file_path"].exists()
+        assert settings["settings_file_path"].parent == tmp_path / "config"
+        assert settings["log_file_path"].parent == tmp_path / "logs"
+
+
+def test_get_settings_with_empty_values(tmp_path):
+    """Test get_settings with empty values."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Test with empty values
+    settings = get_settings(
+        source_dir=str(source_dir),
+        destination_dir="",
+        cleaning_plan={},
+        settings_folder_name=str(tmp_path / "config"),  # Use tmp_path instead of root
+        log_folder_name=str(tmp_path / "logs"),  # Use tmp_path instead of root
+        excludes=[],
+    )
+
+    # Verify empty values are handled correctly
+    assert settings["destination_dir"] == source_dir
+    assert settings["cleaning_plan"]  # Should use DEFAULT_CLEANING_PLAN
+    assert settings["settings_file_path"].is_absolute()
+    assert settings["settings_file_path"].parent == tmp_path / "config"
+    assert settings["log_file_path"].is_absolute()
+    assert settings["log_file_path"].parent == tmp_path / "logs"
+    assert isinstance(settings["excludes"], set)
+    assert len(settings["excludes"]) >= 2  # Should include settings and log files
+
+
+def test_get_settings_log_folder_handling(tmp_path):
+    """Test get_settings log folder name handling."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Mock both Path.home() and DEFAULT_SETTINGS
+    mock_default_settings = DEFAULT_SETTINGS.copy()
+    mock_default_settings["log_folder_name"] = str(tmp_path / ".tidyfiles")
+
+    with patch("pathlib.Path.home", return_value=tmp_path), patch(
+        "tidyfiles.config.DEFAULT_SETTINGS", mock_default_settings
+    ):
+        # Test with log_folder_name set to None
+        settings_no_log_folder = get_settings(
+            source_dir=str(source_dir),
+            log_folder_name=None,
+            log_file_name="test.log",
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+        )
+        # Should use default .tidyfiles directory
+        assert settings_no_log_folder["log_file_path"].parent == tmp_path / ".tidyfiles"
+        assert settings_no_log_folder["log_file_path"].name == "test.log"
+
+        # Test with log_folder_name set to empty string
+        settings_empty_log_folder = get_settings(
+            source_dir=str(source_dir),
+            log_folder_name="",
+            log_file_name="test.log",
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+        )
+        # Should use source directory when log_folder_name is empty
+        assert settings_empty_log_folder["log_file_path"].parent == source_dir
+        assert settings_empty_log_folder["log_file_path"].name == "test.log"
+
+        # Test with log_folder_name set
+        log_folder = tmp_path / "logs"
+        settings_with_log_folder = get_settings(
+            source_dir=str(source_dir),
+            log_folder_name=str(log_folder),
+            log_file_name="test.log",
+            settings_folder_name=str(
+                tmp_path / "config"
+            ),  # Use tmp_path instead of root
+        )
+        # Should use specified log folder
+        assert settings_with_log_folder["log_file_path"].parent == log_folder
+        assert settings_with_log_folder["log_file_path"].name == "test.log"

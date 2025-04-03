@@ -1,6 +1,6 @@
 [project]
 name = "tidyfiles"
-version = "0.6.12"
+version = "0.7.0-b.1"
 description = "TidyFiles is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder! It intelligently organizes files by type and keep logs of all the sorting magic."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -69,7 +69,7 @@ path = "tidyfiles/__init__.py"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q --strict-markers --cov=tidyfiles --cov-report=term-missing --cov-report=xml --cov-report=html"
+addopts = "-ra -q --strict-markers --cov=tidyfiles --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
 pythonpath = ["."]
 
@@ -127,6 +127,7 @@ patch_tags = ["fix", "perf"]
 [tool.semantic_release.branches.main]
 match = "main"
 prerelease = false
+prerelease_token = ""
 
 [tool.semantic_release.branches.rc]
 match = "rc/*"

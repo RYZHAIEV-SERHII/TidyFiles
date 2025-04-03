@@ -21,9 +21,11 @@ DEFAULT_SETTINGS = {
     "log_file_level": "DEBUG",
     "log_file_name": "tidyfiles.log",
     "log_folder_name": str(Path.home() / ".tidyfiles"),
-    "log_file_mode": "w",
+    "log_file_mode": "a",
     "settings_file_name": "settings.toml",
     "settings_folder_name": str(Path.home() / ".tidyfiles"),
+    "history_file_name": "history.json",
+    "history_folder_name": str(Path.home() / ".tidyfiles"),
     "excludes": [],
 }
 
@@ -205,7 +207,7 @@ def get_settings(
         "log_level_console": raw_settings["log_console_level"],
         "log_level_file": raw_settings["log_file_level"],
         "log_file_mode": raw_settings["log_file_mode"],
-        "settngs_file_path": settings_file_path,
+        "settings_file_path": settings_file_path,
         "excludes": excludes_set,
     }
 
