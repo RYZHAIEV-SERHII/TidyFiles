@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.7.0-rc.1 (2025-04-03)
+
+### Chores
+
+- Update version to 0.7.0-b.1 and enhance operation history management
+  ([`5a98836`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/5a9883650a6a2aaaaecdad61141e3498301cd78c))
+
+
 ## v0.7.0-b.1 (2025-04-03)
 
 ### Features
@@ -29,6 +37,9 @@
 
 - Enhance CLI options with default visibility and improved help display
   ([`078c95c`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/078c95c62a114000ccf8f3a11f5d058dbca82856))
+
+- **ci**: Remove prerelease_token from main branch configuration
+  ([`2d53c64`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/2d53c64903f7122ee9511ab37bc06748422331f9))
 
 ### Documentation
 
