@@ -1,10 +1,18 @@
 import pytest
 import typer
+import re
 from typer.testing import CliRunner
 from tidyfiles.cli import app, version_callback, print_welcome_message
 
 # Create a test runner with specific settings
 runner = CliRunner(mix_stderr=False)
+
+
+def clean_rich_output(text):
+    """Remove Rich formatting from text while preserving the actual content."""
+    # Remove ANSI escape sequences
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def test_version_command():
@@ -22,7 +30,9 @@ def test_version_command():
 
 def test_no_source_dir():
     """Test behavior when no source directory is provided"""
-    result = runner.invoke(app, ["--help"])  # Explicitly request help
+    result = runner.invoke(
+        app, ["--help"], env={"NO_COLOR": "1"}
+    )  # Explicitly request help
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "--source-dir" in result.output
@@ -126,7 +136,9 @@ def test_main_with_complete_execution(tmp_path):
 
 def test_main_exit_case():
     """Test that help is shown when no source_dir and no version flag"""
-    result = runner.invoke(app, ["--help"])  # Explicitly request help
+    result = runner.invoke(
+        app, ["--help"], env={"NO_COLOR": "1"}
+    )  # Explicitly request help
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "--source-dir" in result.output
