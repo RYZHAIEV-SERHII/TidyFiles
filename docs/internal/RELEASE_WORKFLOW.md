@@ -97,6 +97,7 @@ The semantic-release tool automatically determines version bumps based on commit
    - Initial feature commit: `0.7.0a1`
    - Subsequent fixes: `0.7.0a2`, `0.7.0a3`, etc.
    - Example workflow:
+
      ```bash
      # On alpha/next
      git commit -m "feat: implement reversible operations"
@@ -111,6 +112,7 @@ The semantic-release tool automatically determines version bumps based on commit
    - Merge from alpha: `0.7.0b1`
    - Subsequent fixes: `0.7.0b2`, `0.7.0b3`, etc.
    - Example workflow:
+
      ```bash
      # Merge from alpha to beta
      git checkout beta/next
@@ -126,6 +128,7 @@ The semantic-release tool automatically determines version bumps based on commit
    - Merge from beta: `0.7.0rc1`
    - Subsequent fixes: `0.7.0rc2`, `0.7.0rc3`, etc.
    - Example workflow:
+
      ```bash
      # Merge from beta to rc
      git checkout rc/next
@@ -140,6 +143,7 @@ The semantic-release tool automatically determines version bumps based on commit
 4. **Stable Release** (`main`):
    - Merge from rc: `0.7.0`
    - Example workflow:
+
      ```bash
      # Merge from rc to main
      git checkout main

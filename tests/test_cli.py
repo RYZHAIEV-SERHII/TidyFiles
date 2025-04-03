@@ -31,11 +31,12 @@ def test_version_command():
 def test_no_source_dir():
     """Test behavior when no source directory is provided"""
     result = runner.invoke(
-        app, ["--help"], env={"NO_COLOR": "1"}
+        app, ["--help"], env={"NO_COLOR": "1", "TERM": "dumb"}
     )  # Explicitly request help
     assert result.exit_code == 0
-    assert "Usage:" in result.output
-    assert "--source-dir" in result.output
+    clean_output = clean_rich_output(result.output)
+    assert "Usage:" in clean_output
+    assert "--source-dir" in clean_output
 
 
 def test_print_welcome_message(capsys):
@@ -137,8 +138,9 @@ def test_main_with_complete_execution(tmp_path):
 def test_main_exit_case():
     """Test that help is shown when no source_dir and no version flag"""
     result = runner.invoke(
-        app, ["--help"], env={"NO_COLOR": "1"}
+        app, ["--help"], env={"NO_COLOR": "1", "TERM": "dumb"}
     )  # Explicitly request help
     assert result.exit_code == 0
-    assert "Usage:" in result.output
-    assert "--source-dir" in result.output
+    clean_output = clean_rich_output(result.output)
+    assert "Usage:" in clean_output
+    assert "--source-dir" in clean_output
