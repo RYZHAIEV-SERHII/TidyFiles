@@ -1,8 +1,11 @@
+import json
+import re
+
 import pytest
 import typer
-import re
 from typer.testing import CliRunner
 from tidyfiles.cli import app, version_callback, print_welcome_message
+from tidyfiles.history import OperationHistory
 
 # Create a test runner with specific settings
 runner = CliRunner(mix_stderr=False)
@@ -133,6 +136,264 @@ def test_main_with_complete_execution(tmp_path):
 
     assert result.exit_code == 0
     assert "LIVE MODE" in result.output
+
+
+def test_history_command_empty(tmp_path):
+    """Test history command with no sessions"""
+    history_file = tmp_path / "history.json"
+    result = runner.invoke(app, ["history", "--history-file", str(history_file)])
+    assert result.exit_code == 0
+    assert "No sessions in history" in result.output
+
+
+def test_history_command_with_sessions(tmp_path):
+    """Test history command with multiple sessions"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create test sessions
+    history.start_session("/test/source1", "/test/dest1")
+    history.add_operation("move", "/test/source1/file1.txt", "/test/dest1/file1.txt")
+    history.start_session("/test/source2", "/test/dest2")
+    history.add_operation("move", "/test/source2/file2.txt", "/test/dest2/file2.txt")
+
+    # Test default view
+    result = runner.invoke(app, ["history", "--history-file", str(history_file)])
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Operation Sessions" in clean_output
+
+    # Test with limit
+    result = runner.invoke(
+        app, ["history", "--history-file", str(history_file), "--limit", "1"]
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Operation Sessions" in clean_output
+
+
+def test_history_command_session_details(tmp_path):
+    """Test history command showing specific session details"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create a test session
+    session_id = history.start_session("/test/source", "/test/dest")
+    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
+    history.add_operation("move", "/test/source/file2.txt", "/test/dest/file2.txt")
+
+    # Test session detail view
+    result = runner.invoke(
+        app,
+        ["history", "--history-file", str(history_file), "--session", str(session_id)],
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Session Details" in clean_output
+    assert "Operations" in clean_output
+
+
+def test_history_command_invalid_session(tmp_path):
+    """Test history command with invalid session ID"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    history.start_session("/test/source", "/test/dest")
+
+    result = runner.invoke(
+        app, ["history", "--history-file", str(history_file), "--session", "999"]
+    )
+    assert result.exit_code == 0
+    assert "Session 999 not found" in result.output
+
+
+def test_undo_command_empty(tmp_path):
+    """Test undo command with no history"""
+    history_file = tmp_path / "history.json"
+    result = runner.invoke(app, ["undo", "--history-file", str(history_file)])
+    assert result.exit_code == 0
+    assert "No sessions in history" in result.output
+
+
+def test_undo_command_session(tmp_path):
+    """Test undoing an entire session"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create test session
+    session_id = history.start_session("/test/source", "/test/dest")
+    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
+    history.add_operation("move", "/test/source/file2.txt", "/test/dest/file2.txt")
+
+    # Test session undo with confirmation
+    result = runner.invoke(
+        app,
+        ["undo", "--history-file", str(history_file), "--session", str(session_id)],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Undo Session" in clean_output
+
+
+def test_undo_command_operation(tmp_path):
+    """Test undoing a specific operation"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create test session
+    session_id = history.start_session("/test/source", "/test/dest")
+    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
+    history.add_operation("move", "/test/source/file2.txt", "/test/dest/file2.txt")
+
+    # Test operation undo with confirmation
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "1",
+        ],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Undo Operation" in clean_output
+
+
+def test_undo_command_invalid_session(tmp_path):
+    """Test undo command with invalid session ID"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    history.start_session("/test/source", "/test/dest")
+
+    result = runner.invoke(
+        app, ["undo", "--history-file", str(history_file), "--session", "999"]
+    )
+    assert result.exit_code == 0
+    assert "Session 999 not found" in result.output
+
+
+def test_undo_command_invalid_operation(tmp_path):
+    """Test undo command with invalid operation number"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create test session
+    session_id = history.start_session("/test/source", "/test/dest")
+    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
+
+    # Test invalid operation number
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "999",
+        ],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Invalid operation number" in clean_output
+
+
+def test_history_command_empty_session(tmp_path):
+    """Test history command with session that has no operations"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create empty session
+    session_id = history.start_session("/test/source", "/test/dest")
+
+    # Verify session state in memory
+    session = next(s for s in history.sessions if s["id"] == session_id)
+    print(f"\nSession in memory: {json.dumps(session, indent=2)}")
+    assert session["operations"] == [], "Session should have no operations in memory"
+
+    # Verify session state in file
+    saved_data = json.loads(history_file.read_text())
+    saved_session = next(s for s in saved_data if s["id"] == session_id)
+    print(f"\nSession in file: {json.dumps(saved_session, indent=2)}")
+    assert saved_session["operations"] == [], (
+        "Session should have no operations in file"
+    )
+
+    # Test session detail view
+    result = runner.invoke(
+        app,
+        ["history", "--history-file", str(history_file), "--session", str(session_id)],
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    print(f"\nRaw CLI output: {result.output}")
+    print(f"\nCleaned CLI output: {clean_output}")
+
+    # Create a new history instance to verify loaded state
+    new_history = OperationHistory(history_file)
+    loaded_session = next(s for s in new_history.sessions if s["id"] == session_id)
+    print(f"\nSession after reload: {json.dumps(loaded_session, indent=2)}")
+
+    # Verify CLI output
+    assert "Operations: 0" in clean_output, "CLI should show 0 operations"
+    assert "No operations in session" in clean_output, (
+        "CLI should show no operations message"
+    )
+
+
+def test_undo_command_cancelled(tmp_path):
+    """Test undo command when user cancels the operation"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create test session
+    session_id = history.start_session("/test/source", "/test/dest")
+    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
+
+    # Test session undo with cancellation
+    result = runner.invoke(
+        app,
+        ["undo", "--history-file", str(history_file), "--session", str(session_id)],
+        input="n\n",
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Operation cancelled" in clean_output
+
+
+def test_undo_command_operation_cancelled(tmp_path):
+    """Test undo command when user cancels the operation"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create test session
+    session_id = history.start_session("/test/source", "/test/dest")
+    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
+
+    # Test operation undo with cancellation
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "1",
+        ],
+        input="n\n",
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Operation cancelled" in clean_output
 
 
 def test_main_exit_case():

@@ -46,6 +46,7 @@ class OperationHistory:
                     data
                     and isinstance(data, list)
                     and all(isinstance(op, dict) for op in data)
+                    and not any("operations" in op for op in data)  # Skip if new format
                 ):
                     # Convert old format to new session-based format
                     # Ensure each operation has required fields
@@ -79,8 +80,10 @@ class OperationHistory:
                             "destination_dir": None,
                         }
                     ]
+                elif isinstance(data, list):
+                    self.sessions = data
                 else:
-                    self.sessions = data or []
+                    self.sessions = []
             except json.JSONDecodeError:
                 logger.warning("Failed to load history file, starting fresh")
                 self.sessions = []
@@ -114,6 +117,11 @@ class OperationHistory:
             "source_dir": str(source_dir) if source_dir else None,
             "destination_dir": str(destination_dir) if destination_dir else None,
         }
+        # Don't convert None to 'None' string
+        if self.current_session["source_dir"] == "None":
+            self.current_session["source_dir"] = None
+        if self.current_session["destination_dir"] == "None":
+            self.current_session["destination_dir"] = None
         self.sessions.append(self.current_session)
         self._save_history()
         return self.current_session["id"]

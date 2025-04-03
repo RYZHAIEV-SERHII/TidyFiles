@@ -94,7 +94,24 @@ def history(
             console.print(f"[red]Session {session_id} not found[/red]")
             return
 
-        operations = session["operations"]
+        operations = session.get("operations", [])
+        session_start = datetime.fromisoformat(session["start_time"])
+
+        # Ensure operations is a list
+        if not isinstance(operations, list):
+            operations = []
+
+        session_info = (
+            f"\n[bold]Session Details[/bold]\n"
+            f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
+            f"Source: [blue]{session['source_dir'] if session['source_dir'] else 'N/A'}[/blue]\n"
+            f"Destination: [blue]{session['destination_dir'] if session['destination_dir'] else 'N/A'}[/blue]\n"
+            f"Status: [yellow]{session['status']}[/yellow]\n"
+            f"Operations: [cyan]{len(operations)}[/cyan]"
+        )
+        console.print(session_info)
+
+        # Show operations list or no operations message
         if not operations:
             console.print(f"[yellow]No operations in session {session_id}[/yellow]")
             return
@@ -119,16 +136,6 @@ def history(
                 op["status"],
             )
 
-        session_start = datetime.fromisoformat(session["start_time"])
-        session_info = (
-            f"\n[bold]Session Details[/bold]\n"
-            f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
-            f"Source: [blue]{session.get('source_dir') if session.get('source_dir') not in [None, 'None'] else 'N/A'}[/blue]\n"
-            f"Destination: [blue]{session.get('destination_dir') if session.get('destination_dir') not in [None, 'None'] else 'N/A'}[/blue]\n"
-            f"Status: [yellow]{session['status']}[/yellow]\n"
-            f"Operations: [cyan]{len(operations)}[/cyan]"
-        )
-        console.print(session_info)
         console.print(table)
 
     else:
