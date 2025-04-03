@@ -50,53 +50,142 @@ def history(
         10,
         "--limit",
         "-l",
-        help="Number of operations to show",
+        help="Number of sessions to show",
+    ),
+    session_id: int = typer.Option(
+        None,
+        "--session",
+        "-s",
+        help="Show details for a specific session",
     ),
 ):
-    """Show the history of file operations."""
+    """Show the history of file organization operations.
+
+    The history is organized into sessions, where each session represents one run of
+    the tidyfiles command. By default, shows a list of all sessions with their source
+    and destination directories.
+
+    Examples:
+        View all sessions (latest first):
+            $ tidyfiles history
+
+        View only the last 5 sessions:
+            $ tidyfiles history --limit 5
+
+        View details of a specific session:
+            $ tidyfiles history --session 3
+    """
     if history_file is None:
         history_file = get_default_history_file()
     else:
         history_file = Path(history_file)
 
     history = OperationHistory(history_file)
-    operations = history.operations[-limit:] if limit > 0 else history.operations
+    sessions = history.sessions[-limit:] if limit > 0 else history.sessions
 
-    if not operations:
-        console.print("[yellow]No operations in history[/yellow]")
+    if not sessions:
+        console.print("[yellow]No sessions in history[/yellow]")
         return
 
-    table = Table(title="Operation History")
-    table.add_column("#", justify="right", style="cyan")
-    table.add_column("Date", style="magenta")
-    table.add_column("Time", style="magenta")
-    table.add_column("Type", style="green")
-    table.add_column("Source", style="blue")
-    table.add_column("Destination", style="blue")
-    table.add_column("Status", style="yellow")
+    if session_id is not None:
+        # Show detailed view of a specific session
+        session = next((s for s in history.sessions if s["id"] == session_id), None)
+        if not session:
+            console.print(f"[red]Session {session_id} not found[/red]")
+            return
 
-    for i, op in enumerate(reversed(operations), 1):
-        timestamp = datetime.fromisoformat(op["timestamp"])
-        table.add_row(
-            str(i),
-            timestamp.strftime("%Y-%m-%d"),
-            timestamp.strftime("%H:%M:%S"),
-            op["type"],
-            op["source"],
-            op["destination"],
-            op["status"],
+        operations = session["operations"]
+        if not operations:
+            console.print(f"[yellow]No operations in session {session_id}[/yellow]")
+            return
+
+        # Show detailed operation table for the session
+        table = Table(title=f"Session {session_id} Operations")
+        table.add_column("#", justify="right", style="cyan")
+        table.add_column("Time", style="magenta")
+        table.add_column("Type", style="green")
+        table.add_column("Source", style="blue")
+        table.add_column("Destination", style="blue")
+        table.add_column("Status", style="yellow")
+
+        for i, op in enumerate(operations, 1):
+            timestamp = datetime.fromisoformat(op["timestamp"])
+            table.add_row(
+                str(i),
+                timestamp.strftime("%H:%M:%S"),
+                op["type"],
+                op["source"],
+                op["destination"],
+                op["status"],
+            )
+
+        session_start = datetime.fromisoformat(session["start_time"])
+        session_info = (
+            f"\n[bold]Session Details[/bold]\n"
+            f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
+            f"Source: [blue]{session.get('source_dir') if session.get('source_dir') not in [None, 'None'] else 'N/A'}[/blue]\n"
+            f"Destination: [blue]{session.get('destination_dir') if session.get('destination_dir') not in [None, 'None'] else 'N/A'}[/blue]\n"
+            f"Status: [yellow]{session['status']}[/yellow]\n"
+            f"Operations: [cyan]{len(operations)}[/cyan]"
         )
+        console.print(session_info)
+        console.print(table)
 
-    console.print(table)
+    else:
+        # Show sessions overview
+        table = Table(title="Operation Sessions")
+        table.add_column("Session ID", justify="right", style="cyan")
+        table.add_column("Date", style="magenta")
+        table.add_column("Time", style="magenta")
+        table.add_column("Source", style="blue")
+        table.add_column("Destination", style="blue")
+        table.add_column("Operations", justify="right", style="cyan")
+        table.add_column("Status", style="yellow")
+
+        for session in reversed(sessions):
+            start_time = datetime.fromisoformat(session["start_time"])
+            # Format paths to be more readable
+            source = session.get("source_dir", "N/A")
+            if source and len(source) > 30:
+                source = "..." + source[-27:]
+
+            dest = session.get("destination_dir", "N/A")
+            if dest and len(dest) > 30:
+                dest = "..." + dest[-27:]
+
+            table.add_row(
+                str(session["id"]),
+                start_time.strftime("%Y-%m-%d"),
+                start_time.strftime("%H:%M:%S"),
+                "N/A"
+                if session.get("source_dir") in [None, "None"]
+                else str(session["source_dir"]),
+                "N/A"
+                if session.get("destination_dir") in [None, "None"]
+                else str(session["destination_dir"]),
+                str(len(session["operations"])),
+                session["status"],
+            )
+
+        console.print(table)
+        console.print(
+            "\n[dim]Use --session/-s <ID> to view details of a specific session[/dim]"
+        )
 
 
 @app.command()
 def undo(
+    session_id: int = typer.Option(
+        None,
+        "--session",
+        "-s",
+        help="Session ID to undo operations from",
+    ),
     operation_number: int = typer.Option(
         None,
         "--number",
         "-n",
-        help="Operation number to undo (from history command)",
+        help="Operation number within the session to undo",
     ),
     history_file: str = typer.Option(
         None,
@@ -105,7 +194,28 @@ def undo(
         show_default=False,
     ),
 ):
-    """Undo a file organization operation."""
+    """Undo file organization operations.
+
+    Operations can be undone at two levels:
+    1. Session level - undo all operations in a session
+    2. Operation level - undo a specific operation within a session
+
+    When undoing operations, files will be moved back to their original locations
+    and deleted directories will be restored. Each operation is handled independently,
+    so you can safely undo specific operations without affecting others.
+
+    Examples:
+        Undo all operations in the latest session:
+            $ tidyfiles undo
+
+        Undo all operations in a specific session:
+            $ tidyfiles undo --session 3
+
+        Undo a specific operation in a session:
+            $ tidyfiles undo --session 3 --number 2
+
+    Use 'tidyfiles history' to see available sessions and operations.
+    """
     if history_file is None:
         history_file = get_default_history_file()
     else:
@@ -113,45 +223,83 @@ def undo(
 
     history = OperationHistory(history_file)
 
+    if not history.sessions:
+        console.print("[yellow]No sessions in history[/yellow]")
+        return
+
+    # If no session specified, use the latest session
+    if session_id is None:
+        session = history.sessions[-1]
+        session_id = session["id"]
+    else:
+        session = next((s for s in history.sessions if s["id"] == session_id), None)
+        if not session:
+            console.print(f"[red]Session {session_id} not found[/red]")
+            return
+
+    operations = session["operations"]
+    if not operations:
+        console.print(f"[yellow]No operations in session {session_id}[/yellow]")
+        return
+
     if operation_number is not None:
-        # Undo specific operation
-        if operation_number < 1 or operation_number > len(history.operations):
+        # Undo specific operation in the session
+        if operation_number < 1 or operation_number > len(operations):
             console.print(f"[red]Invalid operation number: {operation_number}[/red]")
             return
 
-        # Get the operation to undo (operations are stored in chronological order)
-        operation = history.operations[-operation_number]
+        operation = operations[operation_number - 1]
     else:
-        # Undo last operation
-        operation = history.get_last_operation()
-        if not operation:
-            console.print("[yellow]No operations to undo[/yellow]")
+        # Show session summary and confirm undoing all operations
+        session_start = datetime.fromisoformat(session["start_time"])
+        console.print(
+            Panel(
+                f"Session to undo:\n"
+                f"Session ID: [cyan]{session['id']}[/cyan]\n"
+                f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
+                f"Operations: [blue]{len(operations)}[/blue]\n"
+                f"Status: [yellow]{session['status']}[/yellow]",
+                title="[bold cyan]Undo Session[/bold cyan]",
+                expand=False,
+            )
+        )
+
+        if typer.confirm("Do you want to undo all operations in this session?"):
+            # Undo all operations in reverse order
+            success = True
+            for i in reversed(range(len(operations))):
+                if not history.undo_operation(session_id, i):
+                    console.print("[red]Failed to undo all operations[/red]")
+                    success = False
+                    break
+            if success:
+                console.print(
+                    "[green]All operations in session successfully undone![/green]"
+                )
+            return
+        else:
+            console.print("[yellow]Operation cancelled[/yellow]")
             return
 
+    # Show operation details and confirm
     console.print(
         Panel(
             f"Operation to undo:\n"
             f"Type: [cyan]{operation['type']}[/cyan]\n"
             f"Source: [blue]{operation['source']}[/blue]\n"
             f"Destination: [blue]{operation['destination']}[/blue]\n"
-            f"Time: [dim]{operation['timestamp']}[/dim]",
+            f"Status: [yellow]{operation['status']}[/yellow]",
             title="[bold cyan]Undo Operation[/bold cyan]",
-            box=box.ROUNDED,
+            expand=False,
         )
     )
 
     if typer.confirm("Do you want to undo this operation?"):
-        if operation_number is not None:
-            # For specific operation, we need to undo all operations up to that point
-            for _ in range(operation_number):
-                if not history.undo_last_operation():
-                    console.print("[red]Failed to undo operation[/red]")
-                    return
+        # Undo just this specific operation
+        if history.undo_operation(session_id, operation_number - 1):
+            console.print("[green]Operation successfully undone![/green]")
         else:
-            if not history.undo_last_operation():
-                console.print("[red]Failed to undo operation[/red]")
-                return
-        console.print("[green]Operation successfully undone![/green]")
+            console.print("[red]Failed to undo operation[/red]")
     else:
         console.print("[yellow]Operation cancelled[/yellow]")
 
@@ -285,6 +433,11 @@ def main(
                 Path(history_file) if history_file else get_default_history_file()
             )
             history = OperationHistory(history_file_path)
+            # Start a new session for this organization run
+            history.start_session(
+                source_dir=settings["source_dir"],
+                destination_dir=settings["destination_dir"],
+            )
 
         # Create plans for file transfer and directory deletion
         transfer_plan, delete_plan = create_plans(**settings)

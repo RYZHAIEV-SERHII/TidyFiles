@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+from datetime import datetime
 
 import loguru
 from rich.console import Console
@@ -124,7 +125,7 @@ def transfer_files(
                 logger.info(msg)
                 num_transferred_files += 1
                 if history:
-                    history.add_operation("move", source, destination)
+                    history.add_operation("move", source, destination, datetime.now())
             except Exception as e:
                 error_msg = (
                     f"MOVE_FILE [FAILED] | FROM: {source} | "
@@ -208,7 +209,9 @@ def delete_dirs(
                     logger.info(msg)
                     num_deleted_directories += 1
                     if history:
-                        history.add_operation("delete", directory, directory)
+                        history.add_operation(
+                            "delete", directory, directory, datetime.now()
+                        )
             except Exception as e:
                 error_msg = f"DELETE_DIR [FAILED] | PATH: {directory} | ERROR: {str(e)}"
                 operations.append(f"[red]{error_msg}[/red]")

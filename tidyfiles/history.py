@@ -7,32 +7,116 @@ from loguru import logger
 
 
 class OperationHistory:
+    """Class for managing operation history."""
+
     def __init__(self, history_file: Path):
+        """Initialize history manager.
+
+        Args:
+            history_file: Path to history file
+        """
         self.history_file = history_file
         self.history_file.parent.mkdir(parents=True, exist_ok=True)
-        self.operations: List[Dict[str, Any]] = []
+        self.sessions: List[Dict[str, Any]] = []
+        self.current_session = None
         self._load_history()
         # Ensure file exists even if empty
         if not self.history_file.exists():
             self._save_history()
 
+    @property
+    def operations(self):
+        """Get all operations from all sessions as a flat list.
+        This property maintains backward compatibility with tests.
+        """
+        all_operations = []
+        for session in self.sessions:
+            all_operations.extend(session["operations"])
+        return all_operations
+
     def _load_history(self):
         """Load operation history from file."""
         if self.history_file.exists():
             try:
-                with open(self.history_file, "r") as f:
-                    self.operations = json.load(f)
+                with open(self.history_file) as f:
+                    data = json.load(f)
+
+                # Handle old format (flat list of operations)
+                if (
+                    data
+                    and isinstance(data, list)
+                    and all(isinstance(op, dict) for op in data)
+                ):
+                    # Convert old format to new session-based format
+                    # Ensure each operation has required fields
+                    now = datetime.now().isoformat()
+                    for op in data:
+                        if "timestamp" not in op:
+                            op["timestamp"] = now
+                        if "type" not in op:
+                            # Determine type based on whether source and destination are the same
+                            op["type"] = (
+                                "delete"
+                                if op.get("source") == op.get("destination")
+                                else "move"
+                            )
+                        if "status" not in op:
+                            op["status"] = "completed"
+                        if "source" not in op:
+                            op["source"] = "unknown"
+                        if "destination" not in op:
+                            op["destination"] = op["source"]
+
+                    self.sessions = [
+                        {
+                            "id": 1,
+                            "start_time": data[0].get("timestamp", now)
+                            if data
+                            else now,
+                            "operations": data,
+                            "status": "completed",
+                            "source_dir": None,
+                            "destination_dir": None,
+                        }
+                    ]
+                else:
+                    self.sessions = data or []
             except json.JSONDecodeError:
                 logger.warning("Failed to load history file, starting fresh")
-                self.operations = []
+                self.sessions = []
 
     def _save_history(self):
         """Save operation history to file."""
         try:
             with open(self.history_file, "w") as f:
-                json.dump(self.operations, f, indent=2)
+                json.dump(self.sessions, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save history: {e}")
+
+    def start_session(self, source_dir: Path = None, destination_dir: Path = None):
+        """Start a new session for grouping operations.
+
+        Args:
+            source_dir (Path, optional): Source directory for the operations
+            destination_dir (Path, optional): Destination directory for the operations
+        """
+        if self.current_session:
+            # Close previous session if it exists
+            self.current_session["status"] = "completed"
+
+        # Create new session
+        timestamp = datetime.now()
+        self.current_session = {
+            "id": len(self.sessions) + 1,
+            "start_time": timestamp.isoformat(),
+            "status": "in_progress",
+            "operations": [],
+            "source_dir": str(source_dir) if source_dir else None,
+            "destination_dir": str(destination_dir) if destination_dir else None,
+        }
+        self.sessions.append(self.current_session)
+        self._save_history()
+        return self.current_session["id"]
 
     def add_operation(
         self,
@@ -41,7 +125,17 @@ class OperationHistory:
         destination: Path,
         timestamp: datetime = None,
     ):
-        """Add a new operation to history."""
+        """Add new operation to history.
+
+        Args:
+            operation_type: Type of operation (move/delete)
+            source: Source path
+            destination: Destination path
+            timestamp: Optional timestamp for the operation
+        """
+        if not self.current_session:
+            self.start_session(source.parent, destination.parent)
+
         if timestamp is None:
             timestamp = datetime.now()
 
@@ -49,23 +143,47 @@ class OperationHistory:
             "type": operation_type,
             "source": str(source),
             "destination": str(destination),
-            "timestamp": timestamp.isoformat(),
+            "timestamp": timestamp.isoformat()
+            if isinstance(timestamp, datetime)
+            else timestamp,
             "status": "completed",
         }
-        self.operations.append(operation)
+        self.current_session["operations"].append(operation)
         self._save_history()
 
-    def undo_last_operation(self) -> bool:
-        """Undo the last operation in history."""
-        if not self.operations:
+    def undo_operation(self, session_id: int, operation_idx: int = None) -> bool:
+        """Undo a specific operation or the last operation in a session.
+
+        Args:
+            session_id: ID of the session containing the operation
+            operation_idx: Index of the operation to undo (0-based). If None, undoes the last operation.
+
+        Returns:
+            bool: True if operation was successfully undone, False otherwise
+        """
+        # Find the session
+        session = next((s for s in self.sessions if s["id"] == session_id), None)
+        if not session or not session["operations"]:
             return False
 
-        last_operation = self.operations[-1]
-        try:
-            source = Path(last_operation["source"])
-            destination = Path(last_operation["destination"])
+        # Get the operation to undo
+        operations = session["operations"]
+        if operation_idx is not None:
+            if operation_idx < 0 or operation_idx >= len(operations):
+                return False
+            operation = operations[operation_idx]
+        else:
+            operation = operations[-1]
 
-            if last_operation["type"] == "move":
+        # Don't undo if already undone
+        if operation["status"] == "undone":
+            return False
+
+        try:
+            source = Path(operation["source"])
+            destination = Path(operation["destination"])
+
+            if operation["type"] == "move":
                 # Move file back to original location
                 if destination.exists():
                     source.parent.mkdir(parents=True, exist_ok=True)
@@ -75,7 +193,7 @@ class OperationHistory:
                     logger.warning(f"Destination file no longer exists: {destination}")
                     return False
 
-            elif last_operation["type"] == "delete":
+            elif operation["type"] == "delete":
                 # Restore deleted directory
                 if not source.exists():
                     source.mkdir(parents=True, exist_ok=True)
@@ -84,7 +202,14 @@ class OperationHistory:
                     logger.warning(f"Directory already exists: {source}")
                     return False
 
-            last_operation["status"] = "undone"
+            operation["status"] = "undone"
+
+            # Update session status based on its operations
+            if all(op["status"] == "undone" for op in operations):
+                session["status"] = "undone"
+            else:
+                session["status"] = "partially_undone"
+
             self._save_history()
             return True
 
@@ -92,11 +217,24 @@ class OperationHistory:
             logger.error(f"Failed to undo operation: {e}")
             return False
 
+    def undo_last_operation(self) -> bool:
+        """Undo the last operation in the most recent session."""
+        if not self.sessions:
+            return False
+        return self.undo_operation(self.sessions[-1]["id"])
+
     def get_last_operation(self) -> Dict[str, Any]:
         """Get the last operation from history."""
-        return self.operations[-1] if self.operations else None
+        if not self.sessions or not self.sessions[-1]["operations"]:
+            return None
+        return self.sessions[-1]["operations"][-1]
 
     def clear_history(self):
         """Clear all operation history."""
-        self.operations = []
+        self.sessions = []
+        self.current_session = None
         self._save_history()
+
+    def get_last_session(self):
+        """Get the most recent session."""
+        return self.sessions[-1] if self.sessions else None
