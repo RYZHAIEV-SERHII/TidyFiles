@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.7.0-rc.2 (2025-04-04)
+
+### Bug Fixes
+
+- Validate operation type in history processing to prevent invalid operations
+  ([`628841d`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/628841d911c4ba807b85eb93fa4f41b40b9d736c))
+
+### Documentation
+
+- Update architecture and README to include operation history and session management features
+  ([`af7baa7`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/af7baa778dc49a642d8d1fa6947b95c97e2f8e21))
+
+### Testing
+
+- Enhance CLI history and undo command tests with additional scenarios
+  ([`3113802`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/3113802820ba0e84f5cf6f1b1bba2c82c36c51c2))
+
+
 ## v0.7.0-rc.1 (2025-04-03)
 
 ### Chores
