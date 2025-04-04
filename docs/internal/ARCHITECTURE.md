@@ -20,6 +20,7 @@
 │   ├── __init__.py         # Version and package info
 │   ├── cli.py              # Command-line interface using Typer
 │   ├── config.py           # Configuration handling
+│   ├── history.py          # Operation history and session management
 │   ├── logger.py           # Logging setup using Loguru
 │   └── operations.py       # Core file operations and business logic
 │
@@ -75,6 +76,15 @@
 - File type detection and categorization
 - Directory operations and file moving
 - Progress tracking and feedback
+- Integration with history tracking
+
+### History Management (`history.py`)
+
+- Operation history tracking and storage
+- Session management and status tracking
+- Undo functionality for operations and sessions
+- History data persistence and retrieval
+- Session status management (completed, partially_undone, undone)
 
 ### Logging System (`logger.py`)
 
@@ -91,7 +101,11 @@
 1. User input → CLI parser (`cli.py`)
 2. Settings resolution (`config.py`)
 3. Command validation → Operations (`operations.py`)
-4. Logging and user feedback (`logger.py`)
+4. History tracking (`history.py`)
+   - Operation recording
+   - Session management
+   - Undo operations
+5. Logging and user feedback (`logger.py`)
 
 ---
 
