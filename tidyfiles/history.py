@@ -191,6 +191,10 @@ class OperationHistory:
             source = Path(operation["source"])
             destination = Path(operation["destination"])
 
+            if operation["type"] not in ["move", "delete"]:
+                logger.warning(f"Invalid operation type: {operation['type']}")
+                return False
+
             if operation["type"] == "move":
                 # Move file back to original location
                 if destination.exists():
