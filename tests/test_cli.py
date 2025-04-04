@@ -143,7 +143,57 @@ def test_history_command_empty(tmp_path):
     history_file = tmp_path / "history.json"
     result = runner.invoke(app, ["history", "--history-file", str(history_file)])
     assert result.exit_code == 0
-    assert "No sessions in history" in result.output
+    assert "No sessions in history" in clean_rich_output(result.output)
+
+
+def test_history_command_invalid_session(tmp_path):
+    """Test history command with non-existent session"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    history.start_session(tmp_path, tmp_path)
+
+    result = runner.invoke(
+        app, ["history", "--history-file", str(history_file), "--session", "999"]
+    )
+    assert result.exit_code == 0
+    assert "Session 999 not found" in clean_rich_output(result.output)
+
+
+def test_history_command_empty_operations(tmp_path):
+    """Test history command with empty operations"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+
+    # Manually remove operations
+    history.sessions[-1]["operations"] = []
+    history._save_history()
+
+    result = runner.invoke(
+        app,
+        ["history", "--history-file", str(history_file), "--session", str(session_id)],
+    )
+    assert result.exit_code == 0
+    assert "No operations in session" in clean_rich_output(result.output)
+
+
+def test_history_command_invalid_operation(tmp_path):
+    """Test history command with invalid operation data"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+
+    # Manually corrupt the operations data
+    history.sessions[-1]["operations"] = "not_a_list"
+    history._save_history()
+
+    result = runner.invoke(
+        app,
+        ["history", "--history-file", str(history_file), "--session", str(session_id)],
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "No operations in session" in clean_output
 
 
 def test_history_command_with_sessions(tmp_path):
@@ -193,25 +243,122 @@ def test_history_command_session_details(tmp_path):
     assert "Operations" in clean_output
 
 
-def test_history_command_invalid_session(tmp_path):
-    """Test history command with invalid session ID"""
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-    history.start_session("/test/source", "/test/dest")
-
-    result = runner.invoke(
-        app, ["history", "--history-file", str(history_file), "--session", "999"]
-    )
-    assert result.exit_code == 0
-    assert "Session 999 not found" in result.output
-
-
 def test_undo_command_empty(tmp_path):
     """Test undo command with no history"""
     history_file = tmp_path / "history.json"
     result = runner.invoke(app, ["undo", "--history-file", str(history_file)])
     assert result.exit_code == 0
-    assert "No sessions in history" in result.output
+    assert "No sessions in history" in clean_rich_output(result.output)
+
+
+def test_undo_command_no_session_or_operation(tmp_path):
+    """Test undo command with no session or operation specified"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    history.start_session(tmp_path, tmp_path)
+
+    result = runner.invoke(app, ["undo", "--history-file", str(history_file)])
+    assert result.exit_code == 0
+    assert "No operations in session" in clean_rich_output(result.output)
+
+
+def test_undo_command_operation_cancelled(tmp_path):
+    """Test undo command with operation cancelled"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+    history.add_operation("move", tmp_path / "test.txt", tmp_path / "test2.txt")
+
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "1",
+        ],
+        input="n\n",
+    )
+    assert result.exit_code == 0
+    assert "Operation cancelled" in clean_rich_output(result.output)
+
+
+def test_undo_command_invalid_operation_number(tmp_path):
+    """Test undo command with invalid operation number"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+    history.add_operation("move", tmp_path / "test.txt", tmp_path / "test2.txt")
+
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "999",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Invalid operation number: 999" in clean_rich_output(result.output)
+
+
+def test_undo_command_failed_operation(tmp_path, monkeypatch):
+    """Test undo command with operation that fails to undo"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+    history.add_operation("move", tmp_path / "test.txt", tmp_path / "test2.txt")
+
+    # Mock undo_operation to return False
+    def mock_undo_operation(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(OperationHistory, "undo_operation", mock_undo_operation)
+
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "1",
+        ],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    assert "Failed to undo operation" in clean_rich_output(result.output)
+
+
+def test_undo_command_failed_session(tmp_path, monkeypatch):
+    """Test undo command with session operations that fail to undo"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+    history.add_operation("move", tmp_path / "test.txt", tmp_path / "test2.txt")
+
+    # Mock undo_operation to return False
+    def mock_undo_operation(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(OperationHistory, "undo_operation", mock_undo_operation)
+
+    result = runner.invoke(
+        app,
+        ["undo", "--history-file", str(history_file), "--session", str(session_id)],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    assert "Failed to undo all operations" in clean_rich_output(result.output)
 
 
 def test_undo_command_session(tmp_path):
@@ -368,34 +515,6 @@ def test_undo_command_cancelled(tmp_path):
     assert "Operation cancelled" in clean_output
 
 
-def test_undo_command_operation_cancelled(tmp_path):
-    """Test undo command when user cancels the operation"""
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-
-    # Create test session
-    session_id = history.start_session("/test/source", "/test/dest")
-    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
-
-    # Test operation undo with cancellation
-    result = runner.invoke(
-        app,
-        [
-            "undo",
-            "--history-file",
-            str(history_file),
-            "--session",
-            str(session_id),
-            "--number",
-            "1",
-        ],
-        input="n\n",
-    )
-    assert result.exit_code == 0
-    clean_output = clean_rich_output(result.output)
-    assert "Operation cancelled" in clean_output
-
-
 def test_main_exit_case():
     """Test that help is shown when no source_dir and no version flag"""
     result = runner.invoke(
@@ -405,3 +524,10 @@ def test_main_exit_case():
     clean_output = clean_rich_output(result.output)
     assert "Usage:" in clean_output
     assert "--source-dir" in clean_output
+
+
+def test_main_with_invalid_source_dir():
+    """Test main function with non-existent source directory"""
+    result = runner.invoke(app, ["--source-dir", "/nonexistent/path"])
+    assert result.exit_code == 1
+    assert "Source directory does not exist" in clean_rich_output(result.output)
