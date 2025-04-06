@@ -289,26 +289,42 @@ def undo(
             return
 
     # Show operation details and confirm
-    console.print(
-        Panel(
+    try:
+        op_details = (
             f"Operation to undo:\n"
-            f"Type: [cyan]{operation['type']}[/cyan]\n"
-            f"Source: [blue]{operation['source']}[/blue]\n"
-            f"Destination: [blue]{operation['destination']}[/blue]\n"
-            f"Status: [yellow]{operation['status']}[/yellow]",
-            title="[bold cyan]Undo Operation[/bold cyan]",
-            expand=False,
+            f"Type: [cyan]{operation.get('type', 'N/A')}[/cyan]\n"
+            f"Source: [blue]{operation.get('source', 'N/A')}[/blue]\n"
+            f"Destination: [blue]{operation.get('destination', 'N/A')}[/blue]\n"
+            f"Status: [yellow]{operation.get('status', 'N/A')}[/yellow]"
         )
-    )
+        console.print(
+            Panel(
+                op_details,
+                title="[bold cyan]Undo Operation[/bold cyan]",
+                expand=False,
+            )
+        )
 
-    if typer.confirm("Do you want to undo this operation?"):
-        # Undo just this specific operation
-        if history.undo_operation(session_id, operation_number - 1):
-            console.print("[green]Operation successfully undone![/green]")
+        if typer.confirm("Do you want to undo this operation?"):
+            # Undo just this specific operation
+            if history.undo_operation(session_id, operation_number - 1):
+                console.print("[green]Operation successfully undone![/green]")
+            else:
+                console.print("[red]Failed to undo operation[/red]")
         else:
-            console.print("[red]Failed to undo operation[/red]")
-    else:
-        console.print("[yellow]Operation cancelled[/yellow]")
+            console.print("[yellow]Operation cancelled[/yellow]")
+
+    except Exception as e:
+        # Catch unexpected errors accessing potentially corrupt data
+        # or during the undo process itself for this specific operation.
+        console.print(
+            f"[red]Error processing undo for operation {operation_number}: {e}[/red]"
+        )
+        console.print(
+            "[yellow]Operation may be corrupt or could not be undone.[/yellow]"
+        )
+        # Ensure graceful exit even if error occurs
+        raise typer.Exit(0)
 
 
 @app.callback(invoke_without_command=True)
