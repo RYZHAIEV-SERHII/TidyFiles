@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.8.0-rc.1 (2025-04-06)
+
+### Documentation
+
+- Update README to include extensive format support and nested sorting features
+  ([`a4d6e7e`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/a4d6e7edd4106619d1d4f7dd1cde834dfc5bc995))
+
+
 ## v0.8.0-b.1 (2025-04-06)
 
 ### Bug Fixes
