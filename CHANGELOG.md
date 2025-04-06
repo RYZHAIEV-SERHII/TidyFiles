@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.8.0-a.1 (2025-04-06)
+
+### Features
+
+- Enhance cleaning plan structure to support nested categories and additional file types
+  ([`5513a5b`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/5513a5bdb49a831f7018394d2499f5cbf5ea6069))
+
+
 ## v0.7.0 (2025-04-04)
 
 
