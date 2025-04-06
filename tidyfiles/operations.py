@@ -11,47 +11,66 @@ from .history import OperationHistory
 console = Console()
 
 
-def get_folder_path(
-    file: Path, cleaning_plan: dict[Path, list[str]], unrecognized_file: Path
-) -> Path:
+def get_folder_path(file: Path, cleaning_plan: dict, unrecognized_file: Path) -> Path:
     """Determine the folder for a given file based on its extension.
 
-    If the file extension is not found in the cleaning plan, return the unrecognized file folder.
+    Supports nested categories in the cleaning plan.
 
     Args:
         file (Path): The file to determine the folder for.
-        cleaning_plan (dict[Path, list[str]]): The cleaning plan.
+        cleaning_plan (dict): The cleaning plan with possible nested categories.
         unrecognized_file (Path): The folder to return when the file extension is not found.
 
     Returns:
         Path: The folder for the given file.
     """
-    for folder_path, extensions in cleaning_plan.items():
-        if file.suffix in extensions:
-            return folder_path
-    return unrecognized_file
+
+    def find_category(plan: dict, extension: str, current_path: Path = None) -> Path:
+        for category, value in plan.items():
+            if isinstance(value, dict):
+                # If this is a nested category with "extensions" key, check it first
+                if "extensions" in value and extension in value["extensions"]:
+                    return current_path / category if current_path else Path(category)
+
+                # Recursively search in subcategories
+                sub_path = find_category(
+                    value,
+                    extension,
+                    current_path / category if current_path else Path(category),
+                )
+                if sub_path:
+                    return sub_path
+            elif isinstance(value, list) and extension in value:
+                return current_path / category if current_path else Path(category)
+        return None
+
+    # Start with the root path
+    result = find_category(cleaning_plan, file.suffix)
+    return result if result else unrecognized_file
 
 
 def create_plans(
     source_dir: Path,
-    cleaning_plan: dict[Path, list[str]],
+    cleaning_plan: dict,
     unrecognized_file: Path,
     **kwargs,
 ) -> tuple[list[tuple[Path, Path]], list[Path]]:
-    """Generate file transfer and deletion plans.
+    """Generate plans for file transfers and directory deletions.
 
-    The transfer plan is a list of tuples, where the first element is the source file
-    and the second element is the destination folder. The deletion plan is a list of
-    directories to delete.
+    Scans the source directory, creating a plan to move files based on the
+    cleaning plan and a plan to delete directories found during the scan.
+    Supports nested categories in the cleaning plan and excluding specific paths.
 
     Args:
-        source_dir (Path): The source directory to scan.
-        cleaning_plan (dict[Path, list[str]]): The cleaning plan.
-        unrecognized_file (Path): The folder to move files to that are not found in the cleaning plan.
-        **kwargs: Additional keyword arguments. Used just for simplifying settings passing.
+        source_dir (Path): The directory to scan.
+        cleaning_plan (dict): Configuration mapping file extensions to destination folders.
+        unrecognized_file (Path): The base path for files with unrecognized extensions.
+        **kwargs: Optional arguments. Supports 'excludes' (set): Paths to ignore.
 
     Returns:
-        tuple[list[tuple[Path, Path]], list[Path]]: The transfer plan and the deletion plan.
+        tuple[list[tuple[Path, Path]], list[Path]]: A tuple containing the
+            transfer plan (list of source/destination pairs) and the delete
+            plan (list of directories).
     """
     transfer_plan = []
     delete_plan = []
