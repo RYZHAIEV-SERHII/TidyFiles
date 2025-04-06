@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.8.0-b.1 (2025-04-06)
+
+### Bug Fixes
+
+- Improve error handling and display for undo operation in CLI
+  ([`0b195b4`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/0b195b4d7c2f33defaf3bef58f8f02d0c849107a))
+
+### Testing
+
+- Enhance undo command tests with additional scenarios and edge cases
+  ([`89e46ac`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/89e46ac9b30d0accc27c1c4c42a19f87adfb7c13))
+
+
 ## v0.8.0-a.1 (2025-04-06)
 
 ### Features
