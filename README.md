@@ -18,6 +18,7 @@ It intelligently organizes files by type and keeps logs of all the sorting magic
 ## 🌟 Features
 
 - **Smart Organization**: Automatically categorizes files by type (images, documents, videos, etc.)
+- **Extensive Format Support & Nested Sorting**: Organizes a wide variety of file types into relevant categories and subcategories (e.g., `documents/ebooks`, `archives/installers`).
 - **Operation History**: Track and manage all file operations with detailed history
     - View session history with source and destination directories
     - Filter history by session ID or limit number of entries
@@ -238,7 +239,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - 🛈 **Info Feature Expansion**: Enhance the info feature to provide detailed metadata and file information.
 - 🌐 **Multi-language Interface**: Switch between different languages using `--lang` flag for global accessibility.
 - 📁 **Custom Categories**: Define your own file categories and organization rules via simple configuration.
-- 🗂️ **Smart Subdirectories**: Create dynamic folder structures based on file metadata and patterns.
 - 🔍 **Smart Deduplication**: Intelligently detect and handle duplicate files while preserving the newest versions.
 - ✨ **Advanced Renaming**: Bulk rename files using patterns, dates, and custom templates.
 - 🤖 **AI Organization**: Use AI to categorize files based on content, not just extensions.
