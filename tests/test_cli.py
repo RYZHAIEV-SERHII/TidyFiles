@@ -78,7 +78,7 @@ def test_main_with_invalid_inputs(tmp_path):
     test_file = tmp_path / "not_a_directory"
     test_file.touch()
     result = runner.invoke(app, ["--source-dir", str(test_file)])
-    assert result.exit_code != 0
+    assert result.exit_code == 1
     assert "Source path is not a directory" in str(result.exception)
 
 
@@ -212,6 +212,11 @@ def test_history_command_with_sessions(tmp_path):
     assert result.exit_code == 0
     clean_output = clean_rich_output(result.output)
     assert "Operation Sessions" in clean_output
+    # Count the number of table rows (lines starting with │)
+    table_rows = [
+        line for line in clean_output.splitlines() if line.strip().startswith("│")
+    ]
+    assert len(table_rows) == 2, "Expected 2 sessions (table rows) in default view"
 
     # Test with limit
     result = runner.invoke(
@@ -220,6 +225,11 @@ def test_history_command_with_sessions(tmp_path):
     assert result.exit_code == 0
     clean_output = clean_rich_output(result.output)
     assert "Operation Sessions" in clean_output
+    # Count the number of table rows with limit=1
+    table_rows_limit_1 = [
+        line for line in clean_output.splitlines() if line.strip().startswith("│")
+    ]
+    assert len(table_rows_limit_1) == 1, "Expected 1 session (table row) with limit=1"
 
 
 def test_history_command_session_details(tmp_path):
@@ -249,6 +259,25 @@ def test_undo_command_empty(tmp_path):
     result = runner.invoke(app, ["undo", "--history-file", str(history_file)])
     assert result.exit_code == 0
     assert "No sessions in history" in clean_rich_output(result.output)
+
+
+def test_undo_command_latest_session_empty(tmp_path):
+    """Test undo command when the latest session has no operations."""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create a session with operations
+    history.start_session(tmp_path / "s1", tmp_path / "d1")
+    history.add_operation("move", tmp_path / "s1/f.txt", tmp_path / "d1/f.txt")
+
+    # Create the latest session with NO operations
+    last_session_id = history.start_session(tmp_path / "s2", tmp_path / "d2")
+
+    result = runner.invoke(app, ["undo", "--history-file", str(history_file)])
+    assert result.exit_code == 0
+    # Adjust expected message based on actual output format
+    expected_msg = f"No operations in session {last_session_id}"
+    assert expected_msg in clean_rich_output(result.output)
 
 
 def test_undo_command_no_session_or_operation(tmp_path):
@@ -309,6 +338,37 @@ def test_undo_command_invalid_operation_number(tmp_path):
     assert "Invalid operation number: 999" in clean_rich_output(result.output)
 
 
+def test_undo_command_corrupt_operation(tmp_path):
+    """Test undo command with a corrupt operation entry in history."""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path / "source", tmp_path / "dest")
+
+    # Manually add a corrupt operation (missing 'type')
+    corrupt_op = {"source": "s", "destination": "d", "timestamp": "t"}
+    history.sessions[0]["operations"].append(corrupt_op)
+    history._save_history()  # Use internal method to save the corrupt state
+
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "1",
+        ],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    # Check for the error messages printed by the except block in cli.py
+    clean_output = clean_rich_output(result.output)
+    assert "Error processing undo for operation 1" in clean_output
+    assert "Operation may be corrupt or could not be undone" in clean_output
+
+
 def test_undo_command_failed_operation(tmp_path, monkeypatch):
     """Test undo command with operation that fails to undo"""
     history_file = tmp_path / "history.json"
@@ -364,12 +424,24 @@ def test_undo_command_failed_session(tmp_path, monkeypatch):
 def test_undo_command_session(tmp_path):
     """Test undoing an entire session"""
     history_file = tmp_path / "history.json"
+    source_dir_path = tmp_path / "source"
+    dest_dir_path = tmp_path / "dest"
+    source_file1 = source_dir_path / "file1.txt"
+    source_file2 = source_dir_path / "file2.txt"
+    dest_file1 = dest_dir_path / "file1.txt"
+    dest_file2 = dest_dir_path / "file2.txt"
+
     history = OperationHistory(history_file)
 
-    # Create test session
-    session_id = history.start_session("/test/source", "/test/dest")
-    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
-    history.add_operation("move", "/test/source/file2.txt", "/test/dest/file2.txt")
+    # Create test session using tmp_path
+    session_id = history.start_session(str(source_dir_path), str(dest_dir_path))
+    history.add_operation("move", str(source_file1), str(dest_file1))
+    history.add_operation("move", str(source_file2), str(dest_file2))
+
+    # Create dummy destination files for undo to work
+    dest_dir_path.mkdir(parents=True, exist_ok=True)
+    dest_file1.touch()
+    dest_file2.touch()
 
     # Test session undo with confirmation
     result = runner.invoke(
@@ -380,17 +452,30 @@ def test_undo_command_session(tmp_path):
     assert result.exit_code == 0
     clean_output = clean_rich_output(result.output)
     assert "Undo Session" in clean_output
+    assert "All operations in session successfully undone!" in clean_output
 
 
 def test_undo_command_operation(tmp_path):
     """Test undoing a specific operation"""
     history_file = tmp_path / "history.json"
+    source_dir_path = tmp_path / "source"
+    dest_dir_path = tmp_path / "dest"
+    source_file1 = source_dir_path / "file1.txt"
+    source_file2 = source_dir_path / "file2.txt"
+    dest_file1 = dest_dir_path / "file1.txt"
+    dest_file2 = dest_dir_path / "file2.txt"
+
     history = OperationHistory(history_file)
 
-    # Create test session
-    session_id = history.start_session("/test/source", "/test/dest")
-    history.add_operation("move", "/test/source/file1.txt", "/test/dest/file1.txt")
-    history.add_operation("move", "/test/source/file2.txt", "/test/dest/file2.txt")
+    # Create test session using tmp_path
+    session_id = history.start_session(str(source_dir_path), str(dest_dir_path))
+    history.add_operation("move", str(source_file1), str(dest_file1))
+    history.add_operation("move", str(source_file2), str(dest_file2))
+
+    # Create dummy destination files for undo to work
+    dest_dir_path.mkdir(parents=True, exist_ok=True)
+    dest_file1.touch()
+    dest_file2.touch()
 
     # Test operation undo with confirmation
     result = runner.invoke(
@@ -409,6 +494,7 @@ def test_undo_command_operation(tmp_path):
     assert result.exit_code == 0
     clean_output = clean_rich_output(result.output)
     assert "Undo Operation" in clean_output
+    assert "Operation successfully undone!" in clean_output
 
 
 def test_undo_command_invalid_session(tmp_path):
@@ -421,7 +507,7 @@ def test_undo_command_invalid_session(tmp_path):
         app, ["undo", "--history-file", str(history_file), "--session", "999"]
     )
     assert result.exit_code == 0
-    assert "Session 999 not found" in result.output
+    assert "Session 999 not found" in clean_rich_output(result.output)
 
 
 def test_undo_command_invalid_operation(tmp_path):
@@ -531,3 +617,14 @@ def test_main_with_invalid_source_dir():
     result = runner.invoke(app, ["--source-dir", "/nonexistent/path"])
     assert result.exit_code == 1
     assert "Source directory does not exist" in clean_rich_output(result.output)
+
+
+def test_main_no_args_shows_help():
+    """Test that help is shown when the app is run with no arguments."""
+    result = runner.invoke(app, [], env={"NO_COLOR": "1", "TERM": "dumb"})
+    # Should exit successfully after showing help
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    # Check for common help text elements
+    assert "Usage:" in clean_output
+    assert "--source-dir" in clean_output
