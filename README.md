@@ -133,8 +133,17 @@ Downloads/
 ├── photo1.jpg
 ├── document.pdf
 ├── video.mp4
-├── photo2.jpg
-└── archive.zip
+├── archive.zip
+├── song.mp3
+├── unknown.xyz
+├── image.iso
+├── script.py
+├── report.epub
+├── utility.deb
+├── driver.exe
+└── Telegram Desktop/
+    ├── photo2.jpg
+    └── photo3.jpg
 ```
 
 ### After Organization
@@ -143,13 +152,30 @@ Downloads/
 Downloads/
 ├── images/
 │   ├── photo1.jpg
-│   └── photo2.jpg
+│   ├── photo2.jpg
+│   └── photo3.jpg
 ├── documents/
-│   └── document.pdf
+│   ├── document.pdf
+│   └── ebooks/
+│       └── report.epub
 ├── videos/
 │   └── video.mp4
-└── archives/
-    └── archive.zip
+├── music/
+│   └── song.mp3
+├── archives/
+│   ├── archive.zip
+│   ├── installers/
+│   │   ├── windows/
+│   │   │   └── driver.exe
+│   │   └── unix/
+│   │       └── utility.deb
+│   └── disk_images/
+│       └── image.iso
+├── code/
+│   └── scripts/
+│       └── script.py
+└── other/
+    └── unknown.xyz
 ```
 
 ### View History
@@ -157,13 +183,13 @@ Downloads/
 ```bash
 $ tidyfiles history --limit 3
                                     Operation Sessions
-┏━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
-┃ Session ID ┃ Date       ┃ Time     ┃ Source           ┃ Destination     ┃ Operations ┃ Status      ┃
-┡━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
-│          3 │ 2025-04-04 │ 00:35:48 │ ~/Downloads      │ ~/Organized     │          5 │ completed   │
-│          2 │ 2025-04-04 │ 00:34:12 │ ~/Documents      │ ~/Organized     │          3 │ completed   │
-│          1 │ 2025-04-04 │ 00:32:05 │ ~/Desktop        │ ~/Organized     │          2 │ completed   │
-└────────────┴────────────┴──────────┴──────────────────┴─────────────────┴────────────┴─────────────┘
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Session ID ┃ Date       ┃ Time     ┃ Source                             ┃ Destination                      ┃ Operations ┃ Status      ┃
+┡━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│          3 │ 2025-04-04 │ 00:35:48 │ ~/Downloads                        │ ~/Organized                      │         13 │ completed   │
+│          2 │ 2025-04-04 │ 00:34:12 │ ~/Documents                        │ ~/Organized                      │          3 │ completed   │
+│          1 │ 2025-04-04 │ 00:32:05 │ ~/Desktop                          │ ~/Organized                      │          2 │ completed   │
+└────────────┴────────────┴──────────┴────────────────────────────────────┴──────────────────────────────────┴────────────┴─────────────┘
 
 ```
 
@@ -177,17 +203,25 @@ Started: 2025-04-04 00:35:48
 Source: ~/Downloads
 Destination: ~/Organized
 Status: completed
-Operations: 5
-                                    Session 3 Operations
-┏━━━┳━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
-┃ # ┃ Time     ┃ Type ┃ Source                        ┃ Destination                             ┃ Status    ┃
-┡━━━╇━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
-│ 1 │ 00:35:48 │ move │ ~/Downloads/document.pdf      │ ~/Organized/documents/document.pdf      │ completed │
-│ 2 │ 00:35:48 │ move │ ~/Downloads/photo1.jpg        │ ~/Organized/images/photo1.jpg           │ completed │
-│ 3 │ 00:35:48 │ move │ ~/Downloads/photo2.jpg        │ ~/Organized/images/photo2.jpg           │ completed │
-│ 4 │ 00:35:48 │ move │ ~/Downloads/video.mp4         │ ~/Organized/videos/video.mp4            │ completed │
-│ 5 │ 00:35:48 │ move │ ~/Downloads/archive.zip       │ ~/Organized/archives/archive.zip        │ completed │
-└───┴──────────┴──────┴───────────────────────────────┴─────────────────────────────────────────┴───────────┘
+Operations: 13
+                                                Session 3 Operations
+┏━━━━┳━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ #  ┃ Time     ┃ Type ┃ Source                                       ┃ Destination                                              ┃ Status    ┃
+┡━━━━╇━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
+│  1 │ 00:35:48 │ move │ ~/Downloads/photo1.jpg                       │ ~/Organized/images/photo1.jpg                            │ completed │
+│  2 │ 00:35:48 │ move │ ~/Downloads/document.pdf                     │ ~/Organized/documents/document.pdf                       │ completed │
+│  3 │ 00:35:48 │ move │ ~/Downloads/video.mp4                        │ ~/Organized/videos/video.mp4                             │ completed │
+│  4 │ 00:35:48 │ move │ ~/Downloads/archive.zip                      │ ~/Organized/archives/archive.zip                         │ completed │
+│  5 │ 00:35:48 │ move │ ~/Downloads/song.mp3                         │ ~/Organized/music/song.mp3                               │ completed │
+│  6 │ 00:35:48 │ move │ ~/Downloads/unknown.xyz                      │ ~/Organized/other/unknown.xyz                            │ completed │
+│  7 │ 00:35:48 │ move │ ~/Downloads/image.iso                        │ ~/Organized/archives/disk_images/image.iso               │ completed │
+│  8 │ 00:35:48 │ move │ ~/Downloads/script.py                        │ ~/Organized/code/scripts/script.py                       │ completed │
+│  9 │ 00:35:48 │ move │ ~/Downloads/report.epub                      │ ~/Organized/documents/ebooks/report.epub                 │ completed │
+│ 10 │ 00:35:48 │ move │ ~/Downloads/utility.deb                      │ ~/Organized/archives/installers/unix/utility.deb         │ completed │
+│ 11 │ 00:35:48 │ move │ ~/Downloads/driver.exe                       │ ~/Organized/archives/installers/windows/driver.exe       │ completed │
+│ 12 │ 00:35:48 │ move │ ~/Downloads/Telegram Desktop/photo2.jpg      │ ~/Organized/images/photo2.jpg                            │ completed │
+│ 13 │ 00:35:48 │ move │ ~/Downloads/Telegram Desktop/photo3.jpg      │ ~/Organized/images/photo3.jpg                            │ completed │
+└────┴──────────┴──────┴──────────────────────────────────────────────┴──────────────────────────────────────────────────────────┴───────────┘
 
 ```
 
@@ -203,9 +237,9 @@ Do you want to undo all operations in this session? [y/N]: y
 ### Undo specific operation
 
 ```bash
-$ tidyfiles undo --session 3 --number 2
-Do you want to undo operation 2 (~/Downloads/photo1.jpg -> ~/Organized/images/photo1.jpg)? [y/N]: y
-✔ Successfully undone operation 2 in session 3
+$ tidyfiles undo --session 3 --number 1
+Do you want to undo operation 1 (~/Downloads/photo1.jpg -> ~/Organized/images/photo1.jpg)? [y/N]: y
+✔ Successfully undone operation 1 in session 3
 ```
 
 ## 📋 Logging and History
@@ -234,7 +268,7 @@ We welcome contributions! Check out our [Contributing Guidelines](CONTRIBUTING.m
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 🎯 Future Roadmap (v0.8.0+)
+## 🎯 Future Roadmap
 
 - 🛈 **Info Feature Expansion**: Enhance the info feature to provide detailed metadata and file information.
 - 🌐 **Multi-language Interface**: Switch between different languages using `--lang` flag for global accessibility.
