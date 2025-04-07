@@ -38,7 +38,9 @@ def get_default_history_file() -> Path:
     )
 
 
-@app.command()
+@app.command(
+    help="Show operation history (use 'tidyfiles history --help' for details)."
+)
 def history(
     history_file: str = typer.Option(
         None,
@@ -180,7 +182,9 @@ def history(
         )
 
 
-@app.command()
+@app.command(
+    help="Undo operations from history (use 'tidyfiles undo --help' for details)."
+)
 def undo(
     session_id: int = typer.Option(
         None,
