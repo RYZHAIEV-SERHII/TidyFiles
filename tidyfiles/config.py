@@ -110,10 +110,12 @@ DEFAULT_CLEANING_PLAN = {
             ".cpgz",
             ".pax",
             ".wim",
+            ".jar",
+            ".xpi",
         ],
         "installers": {
             "windows": [".msi", ".exe", ".msix", ".appx"],
-            "unix": [".deb", ".rpm", ".pkg", ".apk"],
+            "unix": [".deb", ".rpm", ".pkg", ".apk", ".run"],
         },
         "disk_images": [".iso", ".img", ".dmg", ".nrg", ".mdf", ".bin"],
     },
