@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.8.1 (2025-04-07)
+
+### Bug Fixes
+
+- Add support for additional file types in configuration
+  ([`9a0f5fb`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/9a0f5fbaec08e8a687528310f8d1c549c7f04a3a))
+
+
 ## v0.8.0 (2025-04-06)
 
 
