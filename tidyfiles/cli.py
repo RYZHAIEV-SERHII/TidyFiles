@@ -1,7 +1,8 @@
 import typer
 import sys
+import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Callable
 from rich.table import Table
 from tidyfiles import __version__
@@ -552,6 +553,9 @@ def main(
 
     # If source_dir is provided, proceed with file organization
     if source_dir:
+        # Record start time for duration calculation
+        start_time = time.time()
+
         # Validate source directory
         source_path = Path(source_dir)
         if not source_path.exists():
@@ -668,33 +672,94 @@ def main(
         # Execute the function with log suppression
         run_file_operations()
 
-        # Final Summary Output
-        console.print("\n[bold green]=== Operation Summary ===[/bold green]")
-        if total_files > 0:
-            console.print(
-                f"Files Transferred: [cyan]{num_transferred_files}[/] / {total_files}"
+        # Record end time and calculate duration
+        end_time = time.time()
+        duration = end_time - start_time
+        duration_str = str(timedelta(seconds=int(duration)))
+
+        # Create a Nala-style summary display
+        if total_files > 0 or total_directories > 0:
+            # Calculate percentages
+            file_percent = (
+                100.0
+                if total_files == 0
+                else (num_transferred_files / total_files) * 100
             )
-        else:
-            console.print(
-                "Files Transferred: [yellow]No files planned for transfer.[/yellow]"
+            dir_percent = (
+                100.0
+                if total_directories == 0
+                else (num_deleted_dirs / total_directories) * 100
             )
 
-        if total_directories > 0:
-            # Clarify 'num_deleted' includes processed/skipped dirs
-            console.print(
-                f"Directories Processed (deleted/skipped): [cyan]{num_deleted_dirs}[/] / {total_directories}"
-            )
-        else:
-            console.print(
-                "Directory Cleanup: [yellow]No directories planned for cleanup.[/yellow]"
+            # Create summary panel
+            summary_lines = []
+
+            # Add separator at the top for spacing
+            summary_lines.append("")
+
+            # Add progress bars directly in the summary with more details
+            if total_files > 0:
+                # Create a more verbose and aligned file progress bar
+                file_label = "[green]✓[/green] [blue]Files Progress:[/blue]      "
+                file_bar = f"[cyan]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/cyan] [blue]{file_percent:.1f}%[/blue] • {duration_str} • {num_transferred_files}/{total_files}"
+                summary_lines.append(f"{file_label}{file_bar}")
+
+            if total_directories > 0:
+                # Create a more verbose and aligned directory progress bar
+                dir_label = "[green]✓[/green] [blue]Directories Progress:[/blue]"
+                dir_bar = f"[cyan]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/cyan] [blue]{dir_percent:.1f}%[/blue] • {duration_str} • {num_deleted_dirs}/{total_directories}"
+                summary_lines.append(f"{dir_label}{dir_bar}")
+
+            # Add separator before status information
+            summary_lines.append("")
+
+            # Add time taken at the bottom
+            summary_lines.append(f"Time Taken: [blue]{duration_str}[/blue]")
+
+            # Add completion status at the bottom
+            if dry_run:
+                summary_lines.append(
+                    "Status: [yellow]Dry Run (no changes made)[/yellow]"
+                )
+            else:
+                summary_lines.append("Status: [green]Complete[/green]")
+
+            # Create the summary panel with everything included
+            summary_panel = Panel(
+                "\n".join(summary_lines),
+                title="[bold green]Operation Summary[/bold green]",
+                border_style="green",
+                padding=(1, 2),
+                expand=False,
+                box=box.ROUNDED,
             )
 
+            console.print("\n")
+            console.print(summary_panel)
+
+            # No need for separate progress bars since they're now included in the summary
+        else:
+            # No operations performed
+            console.print(
+                Panel(
+                    "No files or directories were processed.",
+                    title="[bold yellow]Operation Summary[/bold yellow]",
+                    border_style="yellow",
+                    padding=(1, 2),
+                    expand=False,
+                    box=box.ROUNDED,
+                )
+            )
+
+        # Update history if not in dry run mode
         if not dry_run and history:
             # Update current session status to completed if it exists
             if history.current_session is not None:
                 history.current_session["status"] = "Completed"
                 history._save_history()
-            console.print("[bold green]Tidy complete![/bold green]")
+
+            # Print completion message
+            console.print("\n[bold green]Tidy complete![/bold green]")
 
 
 def print_welcome_message(dry_run: bool, source_dir: str, destination_dir: str):
