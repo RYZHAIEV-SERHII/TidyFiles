@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 import loguru
 from rich.console import Console
@@ -25,7 +26,9 @@ def get_folder_path(file: Path, cleaning_plan: dict, unrecognized_file: Path) ->
         Path: The folder for the given file.
     """
 
-    def find_category(plan: dict, extension: str, current_path: Path = None) -> Path:
+    def find_category(
+        plan: dict, extension: str, current_path: Optional[Path] = None
+    ) -> Optional[Path]:
         for category, value in plan.items():
             if isinstance(value, dict):
                 # If this is a nested category with "extensions" key, check it first

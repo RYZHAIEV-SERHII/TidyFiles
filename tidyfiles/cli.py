@@ -1,6 +1,8 @@
 import typer
+import sys
 from pathlib import Path
 from datetime import datetime
+from typing import Callable
 from rich.table import Table
 from tidyfiles import __version__
 from tidyfiles.config import get_settings, DEFAULT_SETTINGS
@@ -18,6 +20,7 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from loguru import logger as loguru_logger
 
 app = typer.Typer(
     name="tidyfiles",
@@ -30,6 +33,44 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 console = Console()
+
+
+def suppress_logs(func: Callable) -> Callable:
+    """Decorator to suppress logs during function execution.
+
+    Args:
+        func: The function to wrap
+
+    Returns:
+        Wrapped function that suppresses logs during execution
+    """
+
+    def wrapper(*args, **kwargs):
+        # Store the original handlers by getting a new handler ID
+        # This approach avoids accessing protected attributes
+        temp_id = loguru_logger.add(lambda _: None)
+        loguru_logger.remove(temp_id)
+
+        # Remove all handlers by using the public API
+        loguru_logger.configure(handlers=[])
+
+        # Add a null handler that discards all logs
+        null_handler_id = loguru_logger.add(lambda _: None, level="ERROR")
+
+        try:
+            # Call the original function
+            return func(*args, **kwargs)
+        finally:
+            # Restore original logging configuration
+            # First remove our temporary handler
+            loguru_logger.remove(null_handler_id)
+
+            # Then restore the default configuration
+            # This will add back the default stderr handler
+            loguru_logger.configure(handlers=[])
+            loguru_logger.add(sys.stderr)
+
+    return wrapper
 
 
 def version_callback(value: bool):
@@ -295,19 +336,9 @@ def undo(
                 TimeElapsedColumn(),
             ]
 
-            # Use rich.progress context manager with quiet_logger to suppress output
-            from loguru import logger as loguru_logger
-
-            # Save current handlers
-            handlers = loguru_logger._core.handlers.copy()
-
-            # Remove all handlers temporarily
-            loguru_logger.remove()
-            # Add a null handler that discards all logs
-            loguru_logger.add(lambda _: None, level="ERROR")
-
-            try:
-                # Use rich.progress context manager
+            # Use suppress_logs decorator to handle log suppression
+            @suppress_logs
+            def run_undo_operations():
                 with Progress(
                     *progress_columns, console=console, transient=True
                 ) as progress:
@@ -317,6 +348,7 @@ def undo(
                     )
 
                     # Undo all operations in reverse order
+                    nonlocal success
                     success = True
                     for i in reversed(range(len(operations))):
                         if not history.undo_operation(
@@ -325,11 +357,10 @@ def undo(
                             console.print("[red]Failed to undo all operations[/red]")
                             success = False
                             break
-            finally:
-                # Restore original handlers
-                loguru_logger.remove()
-                for handler_id, handler in handlers.items():
-                    loguru_logger._core.handlers[handler_id] = handler
+
+            # Execute the function with log suppression
+            success = True
+            run_undo_operations()
 
             if success:
                 console.print(
@@ -368,19 +399,9 @@ def undo(
                 TimeElapsedColumn(),
             ]
 
-            # Use rich.progress context manager with quiet_logger to suppress output
-            from loguru import logger as loguru_logger
-
-            # Save current handlers
-            handlers = loguru_logger._core.handlers.copy()
-
-            # Remove all handlers temporarily
-            loguru_logger.remove()
-            # Add a null handler that discards all logs
-            loguru_logger.add(lambda _: None, level="ERROR")
-
-            try:
-                # Use rich.progress context manager
+            # Use suppress_logs decorator to handle log suppression
+            @suppress_logs
+            def run_undo_operation():
                 with Progress(
                     *progress_columns, console=console, transient=True
                 ) as progress:
@@ -394,11 +415,9 @@ def undo(
                         console.print("[green]Operation successfully undone![/green]")
                     else:
                         console.print("[red]Failed to undo operation[/red]")
-            finally:
-                # Restore original handlers
-                loguru_logger.remove()
-                for handler_id, handler in handlers.items():
-                    loguru_logger._core.handlers[handler_id] = handler
+
+            # Execute the function with log suppression
+            run_undo_operation()
         else:
             console.print("[yellow]Operation cancelled[/yellow]")
 
@@ -569,19 +588,15 @@ def main(
             TimeElapsedColumn(),
         ]
 
-        # Use rich.progress context manager with quiet_logger to suppress output
-        from loguru import logger as loguru_logger
+        # Use suppress_logs decorator to handle log suppression
+        @suppress_logs
+        def run_file_operations():
+            nonlocal \
+                num_transferred_files, \
+                total_files, \
+                num_deleted_dirs, \
+                total_directories
 
-        # Save current handlers
-        handlers = loguru_logger._core.handlers.copy()
-
-        # Remove all handlers temporarily
-        loguru_logger.remove()
-        # Add a null handler that discards all logs
-        loguru_logger.add(lambda _: None, level="ERROR")
-
-        try:
-            # Use rich.progress context manager
             with Progress(
                 *progress_columns, console=console, transient=True
             ) as progress:
@@ -616,11 +631,13 @@ def main(
                 else:
                     console.print("[yellow]No directories found to clean.[/yellow]")
                     num_deleted_dirs, total_directories = 0, 0
-        finally:
-            # Restore original handlers
-            loguru_logger.remove()
-            for handler_id, handler in handlers.items():
-                loguru_logger._core.handlers[handler_id] = handler
+
+        # Initialize variables before calling the function
+        num_transferred_files, total_files = 0, 0
+        num_deleted_dirs, total_directories = 0, 0
+
+        # Execute the function with log suppression
+        run_file_operations()
 
         # Final Summary Output
         console.print("\n[bold green]=== Operation Summary ===[/bold green]")
@@ -645,7 +662,7 @@ def main(
 
         if not dry_run and history:
             # Update current session status to completed if it exists
-            if history.current_session:
+            if history.current_session is not None:
                 history.current_session["status"] = "Completed"
                 history._save_history()
             console.print("[bold green]Tidy complete![/bold green]")

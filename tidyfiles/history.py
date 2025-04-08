@@ -1,9 +1,19 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, TypedDict
 import json
 import shutil
 from loguru import logger
+
+
+# Define TypedDict for session structure
+class SessionDict(TypedDict, total=False):
+    id: int
+    start_time: str
+    status: str
+    operations: List[Dict[str, Any]]
+    source_dir: Optional[str]
+    destination_dir: Optional[str]
 
 
 class OperationHistory:
@@ -17,8 +27,8 @@ class OperationHistory:
         """
         self.history_file = history_file
         self.history_file.parent.mkdir(parents=True, exist_ok=True)
-        self.sessions: List[Dict[str, Any]] = []
-        self.current_session = None
+        self.sessions: List[SessionDict] = []
+        self.current_session: Optional[SessionDict] = None
         self._load_history()
         # Ensure file exists even if empty
         if not self.history_file.exists():
@@ -91,8 +101,13 @@ class OperationHistory:
     def _save_history(self):
         """Save operation history to file."""
         try:
+            # Ensure the parent directory exists
+            self.history_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write directly to file using json.dumps for better formatting
             with open(self.history_file, "w") as f:
-                json.dump(self.sessions, f, indent=2)
+                f.write(json.dumps(self.sessions, indent=2))
+
         except Exception as e:
             logger.error(f"Failed to save history: {e}")
 
@@ -103,13 +118,14 @@ class OperationHistory:
             source_dir (Path, optional): Source directory for the operations
             destination_dir (Path, optional): Destination directory for the operations
         """
-        if self.current_session:
+        if self.current_session is not None:
             # Close previous session if it exists
             self.current_session["status"] = "completed"
 
         # Create new session
         timestamp = datetime.now()
-        self.current_session = {
+        # Create new session with proper typing
+        new_session: SessionDict = {
             "id": len(self.sessions) + 1,
             "start_time": timestamp.isoformat(),
             "status": "in_progress",
@@ -117,11 +133,13 @@ class OperationHistory:
             "source_dir": str(source_dir) if source_dir else None,
             "destination_dir": str(destination_dir) if destination_dir else None,
         }
+        self.current_session = new_session
         # Don't convert None to 'None' string
-        if self.current_session["source_dir"] == "None":
-            self.current_session["source_dir"] = None
-        if self.current_session["destination_dir"] == "None":
-            self.current_session["destination_dir"] = None
+        if self.current_session is not None:
+            if self.current_session.get("source_dir") == "None":
+                self.current_session["source_dir"] = None
+            if self.current_session.get("destination_dir") == "None":
+                self.current_session["destination_dir"] = None
         self.sessions.append(self.current_session)
         self._save_history()
         return self.current_session["id"]
@@ -141,7 +159,7 @@ class OperationHistory:
             destination: Destination path
             timestamp: Optional timestamp for the operation
         """
-        if not self.current_session:
+        if self.current_session is None:
             self.start_session(source.parent, destination.parent)
 
         if timestamp is None:
@@ -260,7 +278,7 @@ class OperationHistory:
             return False
         return self.undo_operation(self.sessions[-1]["id"], None, progress, task_id)
 
-    def get_last_operation(self) -> Dict[str, Any]:
+    def get_last_operation(self) -> Optional[Dict[str, Any]]:
         """Get the last operation from history."""
         if not self.sessions or not self.sessions[-1]["operations"]:
             return None
