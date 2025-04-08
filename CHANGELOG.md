@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.8.2 (2025-04-08)
+
+### Bug Fixes
+
+- Improve log file path determination based on settings
+  ([`ef1ef4e`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/ef1ef4ec4144c6b0d69db6e605a646a0ac7f964b))
+
+### Code Style
+
+- Add help descriptions for history and undo commands in CLI
+  ([`171feaf`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/171feaff115022c6c002380cbe0fb090f73c22e2))
+
+### Documentation
+
+- Update README to reflect new file types and improved directory structure
+  ([`4ad2bcf`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/4ad2bcfc9e82453edc81be42cd3a25bb6f0cb31d))
+
+
 ## v0.8.1 (2025-04-07)
 
 ### Bug Fixes

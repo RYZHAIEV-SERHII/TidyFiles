@@ -1,7 +1,7 @@
 """TidyFiles is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder!
 It intelligently organizes files by type and keep logs of all the sorting magic."""
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 from tidyfiles.cli import app
 
