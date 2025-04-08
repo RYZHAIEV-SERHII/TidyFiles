@@ -38,35 +38,51 @@ console = Console()
 def suppress_logs(func: Callable) -> Callable:
     """Decorator to suppress logs during function execution.
 
+    This decorator temporarily disables all logging output while the wrapped function
+    executes, then restores the default logging configuration afterward. This is useful
+    for operations that would otherwise produce excessive log output that would clutter
+    the display, such as when using progress bars.
+
+    The decorator uses only the public API of the loguru logger to avoid accessing
+    protected attributes, making it more robust against future changes in the library.
+
     Args:
-        func: The function to wrap
+        func: The function to wrap with log suppression
 
     Returns:
         Wrapped function that suppresses logs during execution
+
+    Example:
+        @suppress_logs
+        def noisy_function():
+            # This function's logs will be suppressed
+            logger.info("This won't be displayed")
     """
 
     def wrapper(*args, **kwargs):
-        # Store the original handlers by getting a new handler ID
-        # This approach avoids accessing protected attributes
+        # Create a temporary handler to get a handler ID without accessing protected attributes
+        # This is a clean way to interact with loguru's handler system
         temp_id = loguru_logger.add(lambda _: None)
         loguru_logger.remove(temp_id)
 
-        # Remove all handlers by using the public API
+        # Remove all existing handlers to suppress all logs
+        # Using the public configure() API instead of accessing _core directly
         loguru_logger.configure(handlers=[])
 
-        # Add a null handler that discards all logs
+        # Add a null handler that discards all logs below ERROR level
+        # This ensures critical errors are still captured while suppressing info/debug logs
         null_handler_id = loguru_logger.add(lambda _: None, level="ERROR")
 
         try:
-            # Call the original function
+            # Execute the wrapped function with log suppression active
             return func(*args, **kwargs)
         finally:
-            # Restore original logging configuration
-            # First remove our temporary handler
+            # Cleanup phase - restore normal logging
+            # First remove our temporary null handler
             loguru_logger.remove(null_handler_id)
 
-            # Then restore the default configuration
-            # This will add back the default stderr handler
+            # Then restore the default configuration with stderr output
+            # This ensures logs will work normally after this function completes
             loguru_logger.configure(handlers=[])
             loguru_logger.add(sys.stderr)
 

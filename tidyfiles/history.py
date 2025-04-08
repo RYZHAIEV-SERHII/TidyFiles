@@ -6,8 +6,21 @@ import shutil
 from loguru import logger
 
 
-# Define TypedDict for session structure
 class SessionDict(TypedDict, total=False):
+    """TypedDict for session structure in the operation history.
+
+    Attributes:
+        id: Unique identifier for the session
+        start_time: ISO format timestamp when the session started
+        status: Current status of the session (e.g., "in_progress", "completed")
+        operations: List of operations performed in this session
+        source_dir: Source directory for the operations in this session
+        destination_dir: Destination directory for the operations in this session
+
+    Note:
+        Using total=False to make all fields optional
+    """
+
     id: int
     start_time: str
     status: str
@@ -99,7 +112,15 @@ class OperationHistory:
                 self.sessions = []
 
     def _save_history(self):
-        """Save operation history to file."""
+        """Save operation history to file.
+
+        The history is saved in JSON format to the file at the specified path.
+        If the file does not exist, it is created. If the file exists, it is overwritten.
+        The JSON is formatted with indentation for better readability.
+
+        The method ensures the parent directory exists before attempting to write the file.
+        Any exceptions during the save operation are logged but not raised.
+        """
         try:
             # Ensure the parent directory exists
             self.history_file.parent.mkdir(parents=True, exist_ok=True)

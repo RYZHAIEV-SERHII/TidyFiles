@@ -1,25 +1,43 @@
 import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Tuple, Optional, Any, Protocol
 
-import loguru
 from rich.console import Console
 from rich.panel import Panel
+import loguru
 
 from .history import OperationHistory
+
+
+class ProgressBarProtocol(Protocol):
+    """Protocol for progress bar objects to avoid importing Rich's Progress directly.
+
+    This defines the minimum interface required for progress bar objects used in this module.
+    Using a Protocol instead of Any improves type checking while maintaining flexibility.
+    """
+
+    def update(
+        self, task_id: int, advance: Optional[float] = None, **kwargs
+    ) -> None: ...
+    def add_task(
+        self, description: str, total: Optional[float] = None, **kwargs
+    ) -> int: ...
+
 
 console = Console()
 
 
-def get_folder_path(file: Path, cleaning_plan: dict, unrecognized_file: Path) -> Path:
+def get_folder_path(
+    file: Path, cleaning_plan: Dict[str, Any], unrecognized_file: Path
+) -> Path:
     """Determine the folder for a given file based on its extension.
 
     Supports nested categories in the cleaning plan.
 
     Args:
         file (Path): The file to determine the folder for.
-        cleaning_plan (dict): The cleaning plan with possible nested categories.
+        cleaning_plan (Dict[str, Any]): The cleaning plan with possible nested categories.
         unrecognized_file (Path): The folder to return when the file extension is not found.
 
     Returns:
@@ -27,8 +45,22 @@ def get_folder_path(file: Path, cleaning_plan: dict, unrecognized_file: Path) ->
     """
 
     def find_category(
-        plan: dict, extension: str, current_path: Optional[Path] = None
+        plan: Dict[str, Any], extension: str, current_path: Optional[Path] = None
     ) -> Optional[Path]:
+        """Recursively find the category for a file extension in a nested cleaning plan.
+
+        This helper function traverses the cleaning plan dictionary to find the appropriate
+        category for a given file extension. It supports nested categories and returns the
+        full path to the category folder.
+
+        Args:
+            plan (Dict[str, Any]): The cleaning plan dictionary or sub-dictionary to search in
+            extension (str): The file extension to find (without the dot)
+            current_path (Optional[Path]): The current path in the traversal (used for recursion)
+
+        Returns:
+            The Path to the category folder if found, None otherwise
+        """
         for category, value in plan.items():
             if isinstance(value, dict):
                 # If this is a nested category with "extensions" key, check it first
@@ -54,10 +86,10 @@ def get_folder_path(file: Path, cleaning_plan: dict, unrecognized_file: Path) ->
 
 def create_plans(
     source_dir: Path,
-    cleaning_plan: dict,
+    cleaning_plan: Dict[str, Any],
     unrecognized_file: Path,
     **kwargs,
-) -> tuple[list[tuple[Path, Path]], list[Path]]:
+) -> Tuple[List[Tuple[Path, Path]], List[Path]]:
     """Generate plans for file transfers and directory deletions.
 
     Scans the source directory, creating a plan to move files based on the
@@ -66,12 +98,12 @@ def create_plans(
 
     Args:
         source_dir (Path): The directory to scan.
-        cleaning_plan (dict): Configuration mapping file extensions to destination folders.
+        cleaning_plan (Dict[str, Any]): Configuration mapping file extensions to destination folders.
         unrecognized_file (Path): The base path for files with unrecognized extensions.
-        **kwargs: Optional arguments. Supports 'excludes' (set): Paths to ignore.
+        **kwargs: Optional arguments. Supports 'excludes' (Set[Path]): Paths to ignore.
 
     Returns:
-        tuple[list[tuple[Path, Path]], list[Path]]: A tuple containing the
+        Tuple[List[Tuple[Path, Path]], List[Path]]: A tuple containing the
             transfer plan (list of source/destination pairs) and the delete
             plan (list of directories).
     """
@@ -98,13 +130,13 @@ def create_plans(
 
 
 def transfer_files(
-    transfer_plan: list[tuple[Path, Path]],
+    transfer_plan: List[Tuple[Path, Path]],
     logger: loguru.logger,
     dry_run: bool,
-    history: OperationHistory = None,
-    progress=None,
-    task_id=None,
-) -> tuple[int, int]:
+    history: Optional[OperationHistory] = None,
+    progress: Optional[ProgressBarProtocol] = None,
+    task_id: Optional[int] = None,
+) -> Tuple[int, int]:
     """
     Move files to designated folders based on sorting plan.
 
@@ -113,18 +145,18 @@ def transfer_files(
     "example_1.txt").
 
     Args:
-        transfer_plan (list[tuple[Path, Path]]): A list of tuples, where the first
+        transfer_plan (List[Tuple[Path, Path]]): A list of tuples, where the first
             element is the source file and the second element is the destination
             folder.
-        logger (loguru.logger): The logger to use for logging.
+        logger: The logger to use for logging.
         dry_run (bool): Whether to perform a dry run (i.e. do not actually move
             the files).
-        history (OperationHistory, optional): History tracker for operations.
-        progress (Progress, optional): Rich progress bar instance for displaying progress.
-        task_id (int, optional): Task ID for the progress bar.
+        history (Optional[OperationHistory]): History tracker for operations.
+        progress (Optional[ProgressBarProtocol]): Progress bar instance for displaying progress.
+        task_id (Optional[int]): Task ID for the progress bar.
 
     Returns:
-        tuple[int, int]: A tuple containing the number of files transferred and
+        Tuple[int, int]: A tuple containing the number of files transferred and
             the total number of files in the transfer plan.
     """
     num_transferred_files = 0
@@ -196,27 +228,27 @@ def transfer_files(
 
 
 def delete_dirs(
-    delete_plan: list[Path],
+    delete_plan: List[Path],
     logger: loguru.logger,
     dry_run: bool,
-    history: OperationHistory = None,
-    progress=None,
-    task_id=None,
-) -> tuple[int, int]:
+    history: Optional[OperationHistory] = None,
+    progress: Optional[ProgressBarProtocol] = None,
+    task_id: Optional[int] = None,
+) -> Tuple[int, int]:
     """
     Delete empty directories after moving files.
 
     Args:
-        delete_plan (list[Path]): A list of directories to delete.
-        logger (loguru.logger): The logger to use for logging.
+        delete_plan (List[Path]): A list of directories to delete.
+        logger: The logger to use for logging.
         dry_run (bool): Whether to perform a dry run (i.e. do not actually delete
             the directories).
-        history (OperationHistory, optional): History tracker for operations.
-        progress (Progress, optional): Rich progress bar instance for displaying progress.
-        task_id (int, optional): Task ID for the progress bar.
+        history (Optional[OperationHistory]): History tracker for operations.
+        progress (Optional[ProgressBarProtocol]): Progress bar instance for displaying progress.
+        task_id (Optional[int]): Task ID for the progress bar.
 
     Returns:
-        tuple[int, int]: A tuple containing the number of directories deleted and
+        Tuple[int, int]: A tuple containing the number of directories deleted and
             the total number of directories in the delete plan.
     """
     deleted_paths = set()
