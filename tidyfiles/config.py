@@ -370,12 +370,14 @@ def get_settings(
             for path, indexes in DEFAULT_CLEANING_PLAN.items()
         }
 
-    if raw_settings["log_folder_name"]:
-        log_file_path = (
-            Path(raw_settings["log_folder_name"]) / raw_settings["log_file_name"]
-        ).resolve()
+    # Determine log folder path based on settings or default
+    log_folder_setting = raw_settings.get("log_folder_name")
+    if log_folder_setting:
+        log_folder_path = Path(log_folder_setting)
     else:
-        log_file_path = (destination_dir / raw_settings["log_file_name"]).resolve()
+        log_folder_path = Path(DEFAULT_SETTINGS["log_folder_name"])
+
+    log_file_path = (log_folder_path / raw_settings["log_file_name"]).resolve()
 
     excludes_set = set(Path(path).resolve() for path in raw_settings["excludes"])
     excludes_set.add(settings_file_path)

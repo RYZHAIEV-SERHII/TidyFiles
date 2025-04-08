@@ -334,8 +334,10 @@ def test_get_settings_log_folder_handling(tmp_path):
                 tmp_path / "config"
             ),  # Use tmp_path instead of root
         )
-        # Should use source directory when log_folder_name is empty
-        assert settings_empty_log_folder["log_file_path"].parent == source_dir
+        # Should use default .tidyfiles directory when log_folder_name is empty
+        assert (
+            settings_empty_log_folder["log_file_path"].parent == tmp_path / ".tidyfiles"
+        )
         assert settings_empty_log_folder["log_file_path"].name == "test.log"
 
         # Test with log_folder_name set
