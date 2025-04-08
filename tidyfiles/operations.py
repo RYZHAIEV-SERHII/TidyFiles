@@ -99,6 +99,8 @@ def transfer_files(
     logger: loguru.logger,
     dry_run: bool,
     history: OperationHistory = None,
+    progress=None,
+    task_id=None,
 ) -> tuple[int, int]:
     """
     Move files to designated folders based on sorting plan.
@@ -115,6 +117,8 @@ def transfer_files(
         dry_run (bool): Whether to perform a dry run (i.e. do not actually move
             the files).
         history (OperationHistory, optional): History tracker for operations.
+        progress (Progress, optional): Rich progress bar instance for displaying progress.
+        task_id (int, optional): Task ID for the progress bar.
 
     Returns:
         tuple[int, int]: A tuple containing the number of files transferred and
@@ -123,13 +127,17 @@ def transfer_files(
     num_transferred_files = 0
     operations = []
 
-    for source, destination in transfer_plan:
+    for i, (source, destination) in enumerate(transfer_plan):
         copy_number = 1
         while destination.exists():
             destination = destination.with_name(
                 f"{destination.stem}_{copy_number}{destination.suffix}"
             )
             copy_number += 1
+
+        # Update progress bar if available
+        if progress and task_id is not None:
+            progress.update(task_id, advance=0, description=f"Moving: {source.name}")
 
         if dry_run:
             msg = f"MOVE_FILE [DRY-RUN] | FROM: {source} | TO: {destination}"
@@ -153,21 +161,27 @@ def transfer_files(
                 operations.append(f"[red]{error_msg}[/red]")
                 logger.error(error_msg)
 
-    summary = (
-        f"Total files processed: {len(transfer_plan)}\n"
-        f"Successfully moved: [green]{num_transferred_files}[/green]\n"
-        f"Failed: [red]{len(transfer_plan) - num_transferred_files}[/red]"
-    )
+        # Advance progress bar after processing each file
+        if progress and task_id is not None:
+            progress.update(task_id, advance=1)
 
-    panel_content = "\n".join(
-        [
-            "[bold cyan]=== File Transfer Operations ===[/bold cyan]",
-            *operations,
-            "\n[bold cyan]=== File Transfer Summary ===[/bold cyan]",
-            summary,
-        ]
-    )
-    console.print(Panel(panel_content))
+    # Only show the panel if progress bar is not used
+    if not progress:
+        summary = (
+            f"Total files processed: {len(transfer_plan)}\n"
+            f"Successfully moved: [green]{num_transferred_files}[/green]\n"
+            f"Failed: [red]{len(transfer_plan) - num_transferred_files}[/red]"
+        )
+
+        panel_content = "\n".join(
+            [
+                "[bold cyan]=== File Transfer Operations ===[/bold cyan]",
+                *operations,
+                "\n[bold cyan]=== File Transfer Summary ===[/bold cyan]",
+                summary,
+            ]
+        )
+        console.print(Panel(panel_content))
 
     logger.info(
         "=== File Transfer Summary ===\n"
@@ -183,6 +197,8 @@ def delete_dirs(
     logger: loguru.logger,
     dry_run: bool,
     history: OperationHistory = None,
+    progress=None,
+    task_id=None,
 ) -> tuple[int, int]:
     """
     Delete empty directories after moving files.
@@ -193,6 +209,8 @@ def delete_dirs(
         dry_run (bool): Whether to perform a dry run (i.e. do not actually delete
             the directories).
         history (OperationHistory, optional): History tracker for operations.
+        progress (Progress, optional): Rich progress bar instance for displaying progress.
+        task_id (int, optional): Task ID for the progress bar.
 
     Returns:
         tuple[int, int]: A tuple containing the number of directories deleted and
@@ -202,7 +220,13 @@ def delete_dirs(
     num_deleted_directories = 0
     operations = []
 
-    for directory in delete_plan:
+    for i, directory in enumerate(delete_plan):
+        # Update progress bar if available
+        if progress and task_id is not None:
+            progress.update(
+                task_id, advance=0, description=f"Cleaning: {directory.name}"
+            )
+
         if any(directory.is_relative_to(deleted) for deleted in deleted_paths):
             skip_msg = (
                 "DELETE_DIR [SKIPPED] | "
@@ -212,6 +236,10 @@ def delete_dirs(
             operations.append(f"[yellow]{skip_msg}[/yellow]")
             logger.info(skip_msg)
             num_deleted_directories += 1
+
+            # Advance progress bar for skipped directories
+            if progress and task_id is not None:
+                progress.update(task_id, advance=1)
             continue
 
         if dry_run:
@@ -236,21 +264,27 @@ def delete_dirs(
                 operations.append(f"[red]{error_msg}[/red]")
                 logger.error(error_msg)
 
-    summary = (
-        f"Total directories processed: {len(delete_plan)}\n"
-        f"Successfully deleted: [green]{num_deleted_directories}[/green]\n"
-        f"Failed: [red]{len(delete_plan) - num_deleted_directories}[/red]"
-    )
+        # Advance progress bar after processing each directory
+        if progress and task_id is not None:
+            progress.update(task_id, advance=1)
 
-    panel_content = "\n".join(
-        [
-            "[bold cyan]=== Directory Cleanup Operations ===[/bold cyan]",
-            *operations,
-            "\n[bold cyan]=== Directory Cleanup Summary ===[/bold cyan]",
-            summary,
-        ]
-    )
-    console.print(Panel(panel_content))
+    # Only show the panel if progress bar is not used
+    if not progress:
+        summary = (
+            f"Total directories processed: {len(delete_plan)}\n"
+            f"Successfully deleted: [green]{num_deleted_directories}[/green]\n"
+            f"Failed: [red]{len(delete_plan) - num_deleted_directories}[/red]"
+        )
+
+        panel_content = "\n".join(
+            [
+                "[bold cyan]=== Directory Cleanup Operations ===[/bold cyan]",
+                *operations,
+                "\n[bold cyan]=== Directory Cleanup Summary ===[/bold cyan]",
+                summary,
+            ]
+        )
+        console.print(Panel(panel_content))
 
     logger.info(
         "=== Directory Cleanup Summary ===\n"

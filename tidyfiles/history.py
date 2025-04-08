@@ -159,12 +159,16 @@ class OperationHistory:
         self.current_session["operations"].append(operation)
         self._save_history()
 
-    def undo_operation(self, session_id: int, operation_idx: int = None) -> bool:
+    def undo_operation(
+        self, session_id: int, operation_idx: int = None, progress=None, task_id=None
+    ) -> bool:
         """Undo a specific operation or the last operation in a session.
 
         Args:
             session_id: ID of the session containing the operation
             operation_idx: Index of the operation to undo (0-based). If None, undoes the last operation.
+            progress (Progress, optional): Rich progress bar instance for displaying progress.
+            task_id (int, optional): Task ID for the progress bar.
 
         Returns:
             bool: True if operation was successfully undone, False otherwise
@@ -190,6 +194,14 @@ class OperationHistory:
         try:
             source = Path(operation["source"])
             destination = Path(operation["destination"])
+
+            # Update progress bar description if available
+            if progress and task_id is not None:
+                progress.update(
+                    task_id,
+                    advance=0,
+                    description=f"Undoing: {Path(operation['source']).name}",
+                )
 
             if operation["type"] not in ["move", "delete"]:
                 logger.warning(f"Invalid operation type: {operation['type']}")
@@ -223,17 +235,30 @@ class OperationHistory:
                 session["status"] = "partially_undone"
 
             self._save_history()
+
+            # Advance progress bar if available
+            if progress and task_id is not None:
+                progress.update(task_id, advance=1)
+
             return True
 
         except Exception as e:
             logger.error(f"Failed to undo operation: {e}")
             return False
 
-    def undo_last_operation(self) -> bool:
-        """Undo the last operation in the most recent session."""
+    def undo_last_operation(self, progress=None, task_id=None) -> bool:
+        """Undo the last operation in the most recent session.
+
+        Args:
+            progress (Progress, optional): Rich progress bar instance for displaying progress.
+            task_id (int, optional): Task ID for the progress bar.
+
+        Returns:
+            bool: True if operation was successfully undone, False otherwise
+        """
         if not self.sessions:
             return False
-        return self.undo_operation(self.sessions[-1]["id"])
+        return self.undo_operation(self.sessions[-1]["id"], None, progress, task_id)
 
     def get_last_operation(self) -> Dict[str, Any]:
         """Get the last operation from history."""

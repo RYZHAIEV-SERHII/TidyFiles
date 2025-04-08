@@ -10,6 +10,14 @@ from tidyfiles.history import OperationHistory
 from rich.console import Console
 from rich.panel import Panel
 from rich import box
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 app = typer.Typer(
     name="tidyfiles",
@@ -227,6 +235,7 @@ def undo(
 
     Use 'tidyfiles history' to see available sessions and operations.
     """
+
     if history_file is None:
         history_file = get_default_history_file()
     else:
@@ -276,13 +285,52 @@ def undo(
         )
 
         if typer.confirm("Do you want to undo all operations in this session?"):
-            # Undo all operations in reverse order
-            success = True
-            for i in reversed(range(len(operations))):
-                if not history.undo_operation(session_id, i):
-                    console.print("[red]Failed to undo all operations[/red]")
-                    success = False
-                    break
+            # Define Progress Bar Columns (Nala-style)
+            progress_columns = [
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeRemainingColumn(),
+                TimeElapsedColumn(),
+            ]
+
+            # Use rich.progress context manager with quiet_logger to suppress output
+            from loguru import logger as loguru_logger
+
+            # Save current handlers
+            handlers = loguru_logger._core.handlers.copy()
+
+            # Remove all handlers temporarily
+            loguru_logger.remove()
+            # Add a null handler that discards all logs
+            loguru_logger.add(lambda _: None, level="ERROR")
+
+            try:
+                # Use rich.progress context manager
+                with Progress(
+                    *progress_columns, console=console, transient=True
+                ) as progress:
+                    # Add task for undoing operations
+                    undo_task_id = progress.add_task(
+                        "Undoing operations...", total=len(operations)
+                    )
+
+                    # Undo all operations in reverse order
+                    success = True
+                    for i in reversed(range(len(operations))):
+                        if not history.undo_operation(
+                            session_id, i, progress, undo_task_id
+                        ):
+                            console.print("[red]Failed to undo all operations[/red]")
+                            success = False
+                            break
+            finally:
+                # Restore original handlers
+                loguru_logger.remove()
+                for handler_id, handler in handlers.items():
+                    loguru_logger._core.handlers[handler_id] = handler
+
             if success:
                 console.print(
                     "[green]All operations in session successfully undone![/green]"
@@ -310,11 +358,47 @@ def undo(
         )
 
         if typer.confirm("Do you want to undo this operation?"):
-            # Undo just this specific operation
-            if history.undo_operation(session_id, operation_number - 1):
-                console.print("[green]Operation successfully undone![/green]")
-            else:
-                console.print("[red]Failed to undo operation[/red]")
+            # Define Progress Bar Columns (Nala-style)
+            progress_columns = [
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeRemainingColumn(),
+                TimeElapsedColumn(),
+            ]
+
+            # Use rich.progress context manager with quiet_logger to suppress output
+            from loguru import logger as loguru_logger
+
+            # Save current handlers
+            handlers = loguru_logger._core.handlers.copy()
+
+            # Remove all handlers temporarily
+            loguru_logger.remove()
+            # Add a null handler that discards all logs
+            loguru_logger.add(lambda _: None, level="ERROR")
+
+            try:
+                # Use rich.progress context manager
+                with Progress(
+                    *progress_columns, console=console, transient=True
+                ) as progress:
+                    # Add task for undoing operation
+                    undo_task_id = progress.add_task("Undoing operation...", total=1)
+
+                    # Undo just this specific operation
+                    if history.undo_operation(
+                        session_id, operation_number - 1, progress, undo_task_id
+                    ):
+                        console.print("[green]Operation successfully undone![/green]")
+                    else:
+                        console.print("[red]Failed to undo operation[/red]")
+            finally:
+                # Restore original handlers
+                loguru_logger.remove()
+                for handler_id, handler in handlers.items():
+                    loguru_logger._core.handlers[handler_id] = handler
         else:
             console.print("[yellow]Operation cancelled[/yellow]")
 
@@ -469,21 +553,102 @@ def main(
         # Create plans for file transfer and directory deletion
         transfer_plan, delete_plan = create_plans(**settings)
 
-        # Process files and directories
-        num_transferred_files, total_files = transfer_files(
-            transfer_plan, logger, dry_run, history
+        logger.info(
+            f"Plan created: {len(transfer_plan)} files to transfer, {len(delete_plan)} directories potentially to delete."
         )
-        num_deleted_dirs, total_directories = delete_dirs(
-            delete_plan, logger, dry_run, history
-        )
+        console.print(f"Found {len(transfer_plan)} files to potentially transfer.")
+        console.print(f"Found {len(delete_plan)} directories to potentially delete.")
 
-        if not dry_run:
-            final_summary = (
-                "\n[bold green]=== Final Operation Summary ===[/bold green]\n"
-                f"Files transferred: [cyan]{num_transferred_files}/{total_files}[/cyan]\n"
-                f"Directories deleted: [cyan]{num_deleted_dirs}/{total_directories}[/cyan]"
+        # Define Progress Bar Columns (Nala-style)
+        progress_columns = [
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeRemainingColumn(),
+            TimeElapsedColumn(),
+        ]
+
+        # Use rich.progress context manager with quiet_logger to suppress output
+        from loguru import logger as loguru_logger
+
+        # Save current handlers
+        handlers = loguru_logger._core.handlers.copy()
+
+        # Remove all handlers temporarily
+        loguru_logger.remove()
+        # Add a null handler that discards all logs
+        loguru_logger.add(lambda _: None, level="ERROR")
+
+        try:
+            # Use rich.progress context manager
+            with Progress(
+                *progress_columns, console=console, transient=True
+            ) as progress:
+                if transfer_plan:
+                    transfer_task_id = progress.add_task(
+                        "Moving files...", total=len(transfer_plan)
+                    )
+                    num_transferred_files, total_files = transfer_files(
+                        transfer_plan,
+                        logger,
+                        dry_run,
+                        history,
+                        progress=progress,
+                        task_id=transfer_task_id,
+                    )
+                else:
+                    console.print("[yellow]No files found to transfer.[/yellow]")
+                    num_transferred_files, total_files = 0, 0
+
+                if delete_plan:
+                    delete_task_id = progress.add_task(
+                        "Cleaning directories...", total=len(delete_plan)
+                    )
+                    num_deleted_dirs, total_directories = delete_dirs(
+                        delete_plan,
+                        logger,
+                        dry_run,
+                        history,
+                        progress=progress,
+                        task_id=delete_task_id,
+                    )
+                else:
+                    console.print("[yellow]No directories found to clean.[/yellow]")
+                    num_deleted_dirs, total_directories = 0, 0
+        finally:
+            # Restore original handlers
+            loguru_logger.remove()
+            for handler_id, handler in handlers.items():
+                loguru_logger._core.handlers[handler_id] = handler
+
+        # Final Summary Output
+        console.print("\n[bold green]=== Operation Summary ===[/bold green]")
+        if total_files > 0:
+            console.print(
+                f"Files Transferred: [cyan]{num_transferred_files}[/] / {total_files}"
             )
-            console.print(Panel(final_summary))
+        else:
+            console.print(
+                "Files Transferred: [yellow]No files planned for transfer.[/yellow]"
+            )
+
+        if total_directories > 0:
+            # Clarify 'num_deleted' includes processed/skipped dirs
+            console.print(
+                f"Directories Processed (deleted/skipped): [cyan]{num_deleted_dirs}[/] / {total_directories}"
+            )
+        else:
+            console.print(
+                "Directory Cleanup: [yellow]No directories planned for cleanup.[/yellow]"
+            )
+
+        if not dry_run and history:
+            # Update current session status to completed if it exists
+            if history.current_session:
+                history.current_session["status"] = "Completed"
+                history._save_history()
+            console.print("[bold green]Tidy complete![/bold green]")
 
 
 def print_welcome_message(dry_run: bool, source_dir: str, destination_dir: str):
