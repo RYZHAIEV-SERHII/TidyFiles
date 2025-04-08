@@ -7,7 +7,12 @@ from rich.table import Table
 from tidyfiles import __version__
 from tidyfiles.config import get_settings, DEFAULT_SETTINGS
 from tidyfiles.logger import get_logger
-from tidyfiles.operations import create_plans, transfer_files, delete_dirs
+from tidyfiles.operations import (
+    create_plans,
+    transfer_files,
+    delete_dirs,
+    ProgressBarProtocol,
+)
 from tidyfiles.history import OperationHistory
 from rich.console import Console
 from rich.panel import Panel
@@ -367,8 +372,10 @@ def undo(
                     nonlocal success
                     success = True
                     for i in reversed(range(len(operations))):
+                        # Cast progress to ProgressBarProtocol to satisfy type checker
+                        progress_bar: ProgressBarProtocol = progress  # type: ignore
                         if not history.undo_operation(
-                            session_id, i, progress, undo_task_id
+                            session_id, i, progress_bar, undo_task_id
                         ):
                             console.print("[red]Failed to undo all operations[/red]")
                             success = False
@@ -425,8 +432,10 @@ def undo(
                     undo_task_id = progress.add_task("Undoing operation...", total=1)
 
                     # Undo just this specific operation
+                    # Cast progress to ProgressBarProtocol to satisfy type checker
+                    progress_bar: ProgressBarProtocol = progress  # type: ignore
                     if history.undo_operation(
-                        session_id, operation_number - 1, progress, undo_task_id
+                        session_id, operation_number - 1, progress_bar, undo_task_id
                     ):
                         console.print("[green]Operation successfully undone![/green]")
                     else:
@@ -620,12 +629,14 @@ def main(
                     transfer_task_id = progress.add_task(
                         "Moving files...", total=len(transfer_plan)
                     )
+                    # Cast progress to ProgressBarProtocol to satisfy type checker
+                    progress_bar: ProgressBarProtocol = progress  # type: ignore
                     num_transferred_files, total_files = transfer_files(
                         transfer_plan,
                         logger,
                         dry_run,
                         history,
-                        progress=progress,
+                        progress=progress_bar,
                         task_id=transfer_task_id,
                     )
                 else:
@@ -636,12 +647,14 @@ def main(
                     delete_task_id = progress.add_task(
                         "Cleaning directories...", total=len(delete_plan)
                     )
+                    # Cast progress to ProgressBarProtocol to satisfy type checker
+                    progress_bar: ProgressBarProtocol = progress  # type: ignore
                     num_deleted_dirs, total_directories = delete_dirs(
                         delete_plan,
                         logger,
                         dry_run,
                         history,
-                        progress=progress,
+                        progress=progress_bar,
                         task_id=delete_task_id,
                     )
                 else:
