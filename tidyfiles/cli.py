@@ -1,9 +1,10 @@
 import typer
 import sys
 import time
+import signal
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Callable
+from typing import Callable, Optional
 from rich.table import Table
 from tidyfiles import __version__
 from tidyfiles.config import get_settings, DEFAULT_SETTINGS
@@ -27,6 +28,37 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from loguru import logger as loguru_logger
+
+# Global variable to hold the current history instance for signal handlers
+_current_history: Optional[OperationHistory] = None
+
+
+def signal_handler(sig, frame):
+    """Handle termination signals to properly close active sessions.
+
+    This function is called when the program receives a termination signal
+    (like SIGINT from Ctrl+C). It ensures that any active session is properly
+    marked as completed before the program exits.
+
+    Args:
+        sig: Signal number
+        frame: Current stack frame
+    """
+    global _current_history
+
+    if _current_history and _current_history.current_session:
+        # Mark the current session as completed
+        _current_history.current_session["status"] = "completed"
+        _current_history._save_history()
+        loguru_logger.info("Session properly closed due to program termination")
+
+    # Exit with non-zero status for abnormal termination
+    sys.exit(1)
+
+
+# Register signal handlers for common termination signals
+signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # kill command
 
 app = typer.Typer(
     name="tidyfiles",
@@ -138,6 +170,9 @@ def history(
     the tidyfiles command. By default, shows a list of all sessions with their source
     and destination directories.
 
+    Note: Sessions with 'in_progress' status are automatically fixed during loading
+    if all operations in the session are completed.
+
     Examples:
         View all sessions (latest first):
             $ tidyfiles history
@@ -160,56 +195,120 @@ def history(
         console.print("[yellow]No sessions in history[/yellow]")
         return
 
+    # Sessions with 'in_progress' status are now automatically fixed during loading
+
     if session_id is not None:
-        # Show detailed view of a specific session
-        session = next((s for s in history.sessions if s["id"] == session_id), None)
-        if not session:
-            console.print(f"[red]Session {session_id} not found[/red]")
+        try:
+            # Show detailed view of a specific session
+            session = next((s for s in history.sessions if s["id"] == session_id), None)
+            if not session:
+                console.print(f"[red]Session {session_id} not found[/red]")
+                return
+
+            # Safely get operations with error handling
+            try:
+                if isinstance(session, dict) and "operations" in session:
+                    operations = session["operations"]
+                else:
+                    operations = []
+            except Exception:
+                operations = []
+                console.print(
+                    "[yellow]Warning: Could not access operations data[/yellow]"
+                )
+
+            # Safely get session start time
+            try:
+                if isinstance(session, dict) and "start_time" in session:
+                    session_start = datetime.fromisoformat(session["start_time"])
+                else:
+                    session_start = datetime.now()
+            except Exception:
+                session_start = datetime.now()
+                console.print(
+                    "[yellow]Warning: Could not parse session start time[/yellow]"
+                )
+
+            # Ensure operations is a list
+            if not isinstance(operations, list):
+                console.print(
+                    "[yellow]Warning: Operations data is corrupted, showing empty list[/yellow]"
+                )
+                operations = []
+
+            # Safely build session info with error handling
+            try:
+                source_dir = (
+                    session.get("source_dir", "N/A")
+                    if isinstance(session, dict)
+                    else "N/A"
+                )
+                dest_dir = (
+                    session.get("destination_dir", "N/A")
+                    if isinstance(session, dict)
+                    else "N/A"
+                )
+                status = (
+                    session.get("status", "unknown")
+                    if isinstance(session, dict)
+                    else "unknown"
+                )
+
+                session_info = (
+                    f"\n[bold]Session Details[/bold]\n"
+                    f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
+                    f"Source: [blue]{source_dir}[/blue]\n"
+                    f"Destination: [blue]{dest_dir}[/blue]\n"
+                    f"Status: [yellow]{status}[/yellow]\n"
+                    f"Operations: [cyan]{len(operations) if isinstance(operations, list) else 0}[/cyan]"
+                )
+                console.print(session_info)
+            except Exception as e:
+                console.print(f"[red]Error displaying session info: {str(e)}[/red]")
+
+            # Show operations list or no operations message
+            if not operations or not isinstance(operations, list):
+                console.print(f"[yellow]No operations in session {session_id}[/yellow]")
+                return
+
+            # Show detailed operation table for the session
+            table = Table(title=f"Session {session_id} Operations")
+            table.add_column("#", justify="right", style="cyan")
+            table.add_column("Time", style="magenta")
+            table.add_column("Type", style="green")
+            table.add_column("Source", style="blue")
+            table.add_column("Destination", style="blue")
+            table.add_column("Status", style="yellow")
+
+            try:
+                for i, op in enumerate(operations, 1):
+                    # Ensure each operation is a dictionary
+                    if not isinstance(op, dict):
+                        continue
+
+                    # Get operation fields with fallbacks for missing data
+                    timestamp_str = op.get("timestamp", datetime.now().isoformat())
+                    try:
+                        timestamp = datetime.fromisoformat(timestamp_str)
+                        time_str = timestamp.strftime("%H:%M:%S")
+                    except (ValueError, TypeError):
+                        time_str = "unknown"
+
+                    table.add_row(
+                        str(i),
+                        time_str,
+                        op.get("type", "unknown"),
+                        op.get("source", "unknown"),
+                        op.get("destination", "unknown"),
+                        op.get("status", "unknown"),
+                    )
+                console.print(table)
+            except Exception as e:
+                console.print(f"[red]Error displaying operations: {str(e)}[/red]")
+                console.print("[yellow]Session data may be corrupted[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Error processing session {session_id}: {str(e)}[/red]")
             return
-
-        operations = session.get("operations", [])
-        session_start = datetime.fromisoformat(session["start_time"])
-
-        # Ensure operations is a list
-        if not isinstance(operations, list):
-            operations = []
-
-        session_info = (
-            f"\n[bold]Session Details[/bold]\n"
-            f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
-            f"Source: [blue]{session['source_dir'] if session['source_dir'] else 'N/A'}[/blue]\n"
-            f"Destination: [blue]{session['destination_dir'] if session['destination_dir'] else 'N/A'}[/blue]\n"
-            f"Status: [yellow]{session['status']}[/yellow]\n"
-            f"Operations: [cyan]{len(operations)}[/cyan]"
-        )
-        console.print(session_info)
-
-        # Show operations list or no operations message
-        if not operations:
-            console.print(f"[yellow]No operations in session {session_id}[/yellow]")
-            return
-
-        # Show detailed operation table for the session
-        table = Table(title=f"Session {session_id} Operations")
-        table.add_column("#", justify="right", style="cyan")
-        table.add_column("Time", style="magenta")
-        table.add_column("Type", style="green")
-        table.add_column("Source", style="blue")
-        table.add_column("Destination", style="blue")
-        table.add_column("Status", style="yellow")
-
-        for i, op in enumerate(operations, 1):
-            timestamp = datetime.fromisoformat(op["timestamp"])
-            table.add_row(
-                str(i),
-                timestamp.strftime("%H:%M:%S"),
-                op["type"],
-                op["source"],
-                op["destination"],
-                op["status"],
-            )
-
-        console.print(table)
 
     else:
         # Show sessions overview
@@ -592,6 +691,10 @@ def main(
                 Path(history_file) if history_file else get_default_history_file()
             )
             history = OperationHistory(history_file_path)
+
+            # Set global history for signal handlers
+            _current_history = history
+
             # Start a new session for this organization run
             history.start_session(
                 source_dir=settings["source_dir"],
@@ -755,8 +858,11 @@ def main(
         if not dry_run and history:
             # Update current session status to completed if it exists
             if history.current_session is not None:
-                history.current_session["status"] = "Completed"
+                history.current_session["status"] = "completed"
                 history._save_history()
+
+            # Clear global history reference since we're done
+            _current_history = None
 
             # Print completion message
             console.print("\n[bold green]Tidy complete![/bold green]")

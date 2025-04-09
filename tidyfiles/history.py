@@ -58,7 +58,11 @@ class OperationHistory:
         return all_operations
 
     def _load_history(self):
-        """Load operation history from file."""
+        """Load operation history from file.
+
+        This method also automatically recovers any sessions that might have been
+        left in the 'in_progress' state due to unexpected program termination.
+        """
         if self.history_file.exists():
             try:
                 with open(self.history_file) as f:
@@ -105,6 +109,27 @@ class OperationHistory:
                     ]
                 elif isinstance(data, list):
                     self.sessions = data
+
+                    # Auto-recover any sessions left in 'in_progress' state
+                    # This handles cases where the program was terminated unexpectedly
+                    recovery_needed = False
+                    for session in self.sessions:
+                        if session.get("status", "").lower() == "in_progress":
+                            # Check if all operations are completed
+                            operations = session.get("operations", [])
+                            if operations and all(
+                                op.get("status") == "completed" for op in operations
+                            ):
+                                # If all operations are completed, mark the session as completed
+                                session["status"] = "completed"
+                                recovery_needed = True
+                                logger.info(
+                                    f"Auto-recovered session {session.get('id')} from 'in_progress' to 'completed'"
+                                )
+
+                    # Save the changes if we made any recoveries
+                    if recovery_needed:
+                        self._save_history()
                 else:
                     self.sessions = []
             except json.JSONDecodeError:
