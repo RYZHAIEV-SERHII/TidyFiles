@@ -4,7 +4,7 @@ import time
 import signal
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Optional
 from rich.table import Table
 from tidyfiles import __version__
 from tidyfiles.config import get_settings, DEFAULT_SETTINGS
@@ -27,7 +27,7 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
-from loguru import logger as loguru_logger
+from loguru import logger
 
 # Global variable to hold the current history instance for signal handlers
 _current_history: Optional[OperationHistory] = None
@@ -50,7 +50,7 @@ def signal_handler(sig, frame):
         # Mark the current session as completed
         _current_history.current_session["status"] = "completed"
         _current_history._save_history()
-        loguru_logger.info("Session properly closed due to program termination")
+        logger.info("Session properly closed due to program termination")
 
     # Exit with non-zero status for abnormal termination
     sys.exit(1)
@@ -71,60 +71,6 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 console = Console()
-
-
-def suppress_logs(func: Callable) -> Callable:
-    """Decorator to suppress logs during function execution.
-
-    This decorator temporarily disables all logging output while the wrapped function
-    executes, then restores the default logging configuration afterward. This is useful
-    for operations that would otherwise produce excessive log output that would clutter
-    the display, such as when using progress bars.
-
-    The decorator uses only the public API of the loguru logger to avoid accessing
-    protected attributes, making it more robust against future changes in the library.
-
-    Args:
-        func: The function to wrap with log suppression
-
-    Returns:
-        Wrapped function that suppresses logs during execution
-
-    Example:
-        @suppress_logs
-        def noisy_function():
-            # This function's logs will be suppressed
-            logger.info("This won't be displayed")
-    """
-
-    def wrapper(*args, **kwargs):
-        # Create a temporary handler to get a handler ID without accessing protected attributes
-        # This is a clean way to interact with loguru's handler system
-        temp_id = loguru_logger.add(lambda _: None)
-        loguru_logger.remove(temp_id)
-
-        # Remove all existing handlers to suppress all logs
-        # Using the public configure() API instead of accessing _core directly
-        loguru_logger.configure(handlers=[])
-
-        # Add a null handler that discards all logs below ERROR level
-        # This ensures critical errors are still captured while suppressing info/debug logs
-        null_handler_id = loguru_logger.add(lambda _: None, level="ERROR")
-
-        try:
-            # Execute the wrapped function with log suppression active
-            return func(*args, **kwargs)
-        finally:
-            # Cleanup phase - restore normal logging
-            # First remove our temporary null handler
-            loguru_logger.remove(null_handler_id)
-
-            # Then restore the default configuration with stderr output
-            # This ensures logs will work normally after this function completes
-            loguru_logger.configure(handlers=[])
-            loguru_logger.add(sys.stderr)
-
-    return wrapper
 
 
 def version_callback(value: bool):
@@ -356,13 +302,13 @@ def history(
     help="Undo operations from history (use 'tidyfiles undo --help' for details)."
 )
 def undo(
-    session_id: int = typer.Option(
+    session_id: Optional[int] = typer.Option(
         None,
         "--session",
         "-s",
         help="Session ID to undo operations from",
     ),
-    operation_number: int = typer.Option(
+    operation_number: Optional[int] = typer.Option(
         None,
         "--number",
         "-n",
@@ -399,55 +345,147 @@ def undo(
     """
 
     if history_file is None:
-        history_file = get_default_history_file()
+        history_file_path = get_default_history_file()
     else:
-        history_file = Path(history_file)
+        history_file_path = Path(history_file)
 
-    history = OperationHistory(history_file)
+    history = OperationHistory(history_file_path)
 
     if not history.sessions:
         console.print("[yellow]No sessions in history[/yellow]")
         return
 
-    # If no session specified, use the latest session
+    # Determine the target session
     if session_id is None:
-        session = history.sessions[-1]
-        session_id = session["id"]
+        if operation_number is not None:
+            console.print(
+                "[red]Error: Using --number requires specifying --session.[/red]"
+            )
+            raise typer.Exit(1)
+        else:
+            target_session = history.sessions[-1]
+            session_id = target_session["id"]
     else:
-        session = next((s for s in history.sessions if s["id"] == session_id), None)
-        if not session:
+        target_session = next(
+            (s for s in history.sessions if s["id"] == session_id), None
+        )
+        if not target_session:
             console.print(f"[red]Session {session_id} not found[/red]")
             return
 
-    operations = session["operations"]
+    # Initialize Settings and Logger for the undo command
+    settings = get_settings(
+        # Pass a placeholder source_dir
+        source_dir=".",
+        # Logging/settings options are not passed from CLI,
+        # so get_settings will use defaults or load from settings file.
+    )
+    logger = get_logger(**settings)
+
+    operations = target_session["operations"]
     if not operations:
         console.print(f"[yellow]No operations in session {session_id}[/yellow]")
         return
 
     if operation_number is not None:
-        # Undo specific operation in the session
+        # ---- Undo Specific Operation ----
         if operation_number < 1 or operation_number > len(operations):
             console.print(f"[red]Invalid operation number: {operation_number}[/red]")
             return
 
         operation = operations[operation_number - 1]
+
+        # Show operation details and confirm
+        try:
+            op_details = (
+                f"Operation to undo:\n"
+                f"Session ID: [cyan]{session_id}[/cyan]\n"
+                f"Operation #: [cyan]{operation_number}[/cyan]\n"
+                f"Type: [cyan]{operation.get('type', 'N/A')}[/cyan]\n"
+                f"Source: [blue]{operation.get('source', 'N/A')}[/blue]\n"
+                f"Destination: [blue]{operation.get('destination', 'N/A')}[/blue]\n"
+                f"Status: [yellow]{operation.get('status', 'N/A')}[/yellow]"
+            )
+            console.print(
+                Panel(
+                    op_details,
+                    title="[bold cyan]Undo Operation[/bold cyan]",
+                    expand=False,
+                )
+            )
+
+            if typer.confirm("Do you want to undo this operation?"):
+                # Define Progress Bar Columns (Nala-style)
+                progress_columns = [
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    TimeRemainingColumn(),
+                    TimeElapsedColumn(),
+                ]
+
+                def run_undo_operation():
+                    with Progress(
+                        *progress_columns, console=console, transient=True
+                    ) as progress:
+                        undo_task_id = progress.add_task(
+                            "Undoing operation...", total=1
+                        )
+                        progress_bar: ProgressBarProtocol = progress  # type: ignore
+                        if history.undo_operation(
+                            session_id,
+                            operation_number - 1,
+                            progress_bar,
+                            undo_task_id,
+                            logger=logger,
+                        ):
+                            console.print(
+                                "[green]Operation successfully undone![/green]"
+                            )
+                        else:
+                            console.print("[red]Failed to undo operation[/red]")
+
+                logger.info(
+                    f"--- Undo Operation {operation_number} in Session {session_id} started ---"
+                )
+                start_undo_op_time = time.time()
+                run_undo_operation()
+                end_undo_op_time = time.time()
+                undo_op_duration = str(
+                    timedelta(seconds=int(end_undo_op_time - start_undo_op_time))
+                )
+                logger.info(
+                    f"--- Undo Operation {operation_number} in Session {session_id} ended (Duration: {undo_op_duration}) ---"
+                )
+            else:
+                console.print("[yellow]Operation cancelled[/yellow]")
+
+        except Exception as e:
+            console.print(
+                f"[red]Error processing undo for operation {operation_number}: {e}[/red]"
+            )
+            console.print(
+                "[yellow]Operation may be corrupt or could not be undone.[/yellow]"
+            )
+            raise typer.Exit(1)
+
     else:
-        # Show session summary and confirm undoing all operations
-        session_start = datetime.fromisoformat(session["start_time"])
+        # ---- Undo Entire Session ----
+        session_start = datetime.fromisoformat(target_session["start_time"])
         console.print(
             Panel(
                 f"Session to undo:\n"
-                f"Session ID: [cyan]{session['id']}[/cyan]\n"
+                f"Session ID: [cyan]{target_session['id']}[/cyan]\n"
                 f"Started: [magenta]{session_start.strftime('%Y-%m-%d %H:%M:%S')}[/magenta]\n"
                 f"Operations: [blue]{len(operations)}[/blue]\n"
-                f"Status: [yellow]{session['status']}[/yellow]",
-                title="[bold cyan]Undo Session[/bold cyan]",
+                f"Status: [yellow]{target_session['status']}[/yellow]",
+                title="[bold cyan]Undo Entire Session[/bold cyan]",
                 expand=False,
             )
         )
 
         if typer.confirm("Do you want to undo all operations in this session?"):
-            # Define Progress Bar Columns (Nala-style)
             progress_columns = [
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -457,106 +495,41 @@ def undo(
                 TimeElapsedColumn(),
             ]
 
-            # Use suppress_logs decorator to handle log suppression
-            @suppress_logs
             def run_undo_operations():
+                nonlocal success  # Define success for this scope
+                success = True
                 with Progress(
                     *progress_columns, console=console, transient=True
                 ) as progress:
-                    # Add task for undoing operations
                     undo_task_id = progress.add_task(
                         "Undoing operations...", total=len(operations)
                     )
-
-                    # Undo all operations in reverse order
-                    nonlocal success
-                    success = True
                     for i in reversed(range(len(operations))):
-                        # Cast progress to ProgressBarProtocol to satisfy type checker
                         progress_bar: ProgressBarProtocol = progress  # type: ignore
                         if not history.undo_operation(
-                            session_id, i, progress_bar, undo_task_id
+                            session_id, i, progress_bar, undo_task_id, logger=logger
                         ):
                             console.print("[red]Failed to undo all operations[/red]")
                             success = False
                             break
 
-            # Execute the function with log suppression
-            success = True
+            success = True  # Initialize success before calling run_undo_operations
+            logger.info(f"--- Undo Session {session_id} started ---")
+            start_undo_time = time.time()
             run_undo_operations()
+            end_undo_time = time.time()
+            undo_duration = str(timedelta(seconds=int(end_undo_time - start_undo_time)))
+            logger.info(
+                f"--- Undo Session {session_id} ended (Duration: {undo_duration}) ---"
+            )
 
             if success:
                 console.print(
                     "[green]All operations in session successfully undone![/green]"
                 )
-            return
         else:
             console.print("[yellow]Operation cancelled[/yellow]")
             return
-
-    # Show operation details and confirm
-    try:
-        op_details = (
-            f"Operation to undo:\n"
-            f"Type: [cyan]{operation.get('type', 'N/A')}[/cyan]\n"
-            f"Source: [blue]{operation.get('source', 'N/A')}[/blue]\n"
-            f"Destination: [blue]{operation.get('destination', 'N/A')}[/blue]\n"
-            f"Status: [yellow]{operation.get('status', 'N/A')}[/yellow]"
-        )
-        console.print(
-            Panel(
-                op_details,
-                title="[bold cyan]Undo Operation[/bold cyan]",
-                expand=False,
-            )
-        )
-
-        if typer.confirm("Do you want to undo this operation?"):
-            # Define Progress Bar Columns (Nala-style)
-            progress_columns = [
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TimeRemainingColumn(),
-                TimeElapsedColumn(),
-            ]
-
-            # Use suppress_logs decorator to handle log suppression
-            @suppress_logs
-            def run_undo_operation():
-                with Progress(
-                    *progress_columns, console=console, transient=True
-                ) as progress:
-                    # Add task for undoing operation
-                    undo_task_id = progress.add_task("Undoing operation...", total=1)
-
-                    # Undo just this specific operation
-                    # Cast progress to ProgressBarProtocol to satisfy type checker
-                    progress_bar: ProgressBarProtocol = progress  # type: ignore
-                    if history.undo_operation(
-                        session_id, operation_number - 1, progress_bar, undo_task_id
-                    ):
-                        console.print("[green]Operation successfully undone![/green]")
-                    else:
-                        console.print("[red]Failed to undo operation[/red]")
-
-            # Execute the function with log suppression
-            run_undo_operation()
-        else:
-            console.print("[yellow]Operation cancelled[/yellow]")
-
-    except Exception as e:
-        # Catch unexpected errors accessing potentially corrupt data
-        # or during the undo process itself for this specific operation.
-        console.print(
-            f"[red]Error processing undo for operation {operation_number}: {e}[/red]"
-        )
-        console.print(
-            "[yellow]Operation may be corrupt or could not be undone.[/yellow]"
-        )
-        # Ensure graceful exit even if error occurs
-        raise typer.Exit(0)
 
 
 @app.callback(invoke_without_command=True)
@@ -686,6 +659,7 @@ def main(
 
         # Initialize history system if not in dry-run mode
         history = None
+        session_id = None  # Initialize session_id
         if not dry_run:
             history_file_path = (
                 Path(history_file) if history_file else get_default_history_file()
@@ -700,6 +674,8 @@ def main(
                 source_dir=settings["source_dir"],
                 destination_dir=settings["destination_dir"],
             )
+            session_id = history.current_session["id"]
+            logger.info(f"--- Session {session_id} started ---")
 
         # Create plans for file transfer and directory deletion
         transfer_plan, delete_plan = create_plans(**settings)
@@ -720,8 +696,6 @@ def main(
             TimeElapsedColumn(),
         ]
 
-        # Use suppress_logs decorator to handle log suppression
-        @suppress_logs
         def run_file_operations():
             nonlocal \
                 num_transferred_files, \
@@ -772,13 +746,18 @@ def main(
         num_transferred_files, total_files = 0, 0
         num_deleted_dirs, total_directories = 0, 0
 
-        # Execute the function with log suppression
+        # Execute the function
         run_file_operations()
 
         # Record end time and calculate duration
         end_time = time.time()
         duration = end_time - start_time
         duration_str = str(timedelta(seconds=int(duration)))
+
+        if not dry_run and session_id is not None:
+            logger.info(
+                f"--- Session {session_id} ended (Duration: {duration_str}) ---"
+            )
 
         # Create a Nala-style summary display
         if total_files > 0 or total_directories > 0:

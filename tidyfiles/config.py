@@ -204,7 +204,7 @@ DEFAULT_SETTINGS = {
     "log_console_output_status": True,
     "log_console_level": "WARNING",
     "log_file_output_status": True,
-    "log_file_level": "DEBUG",
+    "log_file_level": "INFO",
     "log_file_name": "tidyfiles.log",
     "log_folder_name": str(Path.home() / ".tidyfiles"),
     "log_file_mode": "a",

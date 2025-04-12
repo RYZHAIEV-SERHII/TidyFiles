@@ -224,7 +224,12 @@ class OperationHistory:
         self._save_history()
 
     def undo_operation(
-        self, session_id: int, operation_idx: int = None, progress=None, task_id=None
+        self,
+        session_id: int,
+        operation_idx: int = None,
+        progress=None,
+        task_id=None,
+        logger: Optional[logger] = None,
     ) -> bool:
         """Undo a specific operation or the last operation in a session.
 
@@ -233,6 +238,7 @@ class OperationHistory:
             operation_idx: Index of the operation to undo (0-based). If None, undoes the last operation.
             progress (Progress, optional): Rich progress bar instance for displaying progress.
             task_id (int, optional): Task ID for the progress bar.
+            logger (Optional[logger]): Logger instance for logging undo actions.
 
         Returns:
             bool: True if operation was successfully undone, False otherwise
@@ -276,19 +282,24 @@ class OperationHistory:
                 if destination.exists():
                     source.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(destination), str(source))
-                    logger.info(f"Undid move operation: {destination} -> {source}")
+                    logger.info(f"UNDO MOVE | FROM: {destination} | TO: {source}")
                 else:
-                    logger.warning(f"Destination file no longer exists: {destination}")
-                    return False
+                    logger.warning(
+                        f"UNDO MOVE [SKIP] | Destination file no longer exists: {destination}"
+                    )
+                    # Do not return False, allow marking as undone even if file is missing
+                    # This prevents getting stuck if a file was manually deleted after sorting.
 
             elif operation["type"] == "delete":
                 # Restore deleted directory
                 if not source.exists():
                     source.mkdir(parents=True, exist_ok=True)
-                    logger.info(f"Restored deleted directory: {source}")
+                    logger.info(f"UNDO DELETE | RESTORED: {source}")
                 else:
-                    logger.warning(f"Directory already exists: {source}")
-                    return False
+                    logger.warning(
+                        f"UNDO DELETE [SKIP] | Directory already exists: {source}"
+                    )
+                    # Do not return False, allow marking as undone if dir exists
 
             operation["status"] = "undone"
 
@@ -310,19 +321,24 @@ class OperationHistory:
             logger.error(f"Failed to undo operation: {e}")
             return False
 
-    def undo_last_operation(self, progress=None, task_id=None) -> bool:
+    def undo_last_operation(
+        self, progress=None, task_id=None, logger: Optional[logger] = None
+    ) -> bool:
         """Undo the last operation in the most recent session.
 
         Args:
             progress (Progress, optional): Rich progress bar instance for displaying progress.
             task_id (int, optional): Task ID for the progress bar.
+            logger (Optional[logger]): Logger instance for logging undo actions.
 
         Returns:
             bool: True if operation was successfully undone, False otherwise
         """
         if not self.sessions:
             return False
-        return self.undo_operation(self.sessions[-1]["id"], None, progress, task_id)
+        return self.undo_operation(
+            self.sessions[-1]["id"], None, progress, task_id, logger
+        )
 
     def get_last_operation(self) -> Optional[Dict[str, Any]]:
         """Get the last operation from history."""
