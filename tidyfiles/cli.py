@@ -109,6 +109,18 @@ def history(
         "-s",
         help="Show details for a specific session",
     ),
+    clear_history: bool = typer.Option(
+        False,
+        "--clear-history",
+        help="Clear the entire operation history",
+        is_flag=True,
+    ),
+    last_session: bool = typer.Option(
+        False,
+        "--last-session",
+        help="Show details for the last session",
+        is_flag=True,
+    ),
 ):
     """Show the history of file organization operations.
 
@@ -128,13 +140,41 @@ def history(
 
         View details of a specific session:
             $ tidyfiles history --session 3
+
+        View details of the last session:
+            $ tidyfiles history --last-session
+
+        Clear all history:
+            $ tidyfiles history --clear-history
+
+        # Clear the log file:
+        #     $ tidyfiles history --clear-log
     """
     if history_file is None:
-        history_file = get_default_history_file()
+        history_file_path = get_default_history_file()
     else:
-        history_file = Path(history_file)
+        history_file_path = Path(history_file)
 
-    history = OperationHistory(history_file)
+    history = OperationHistory(history_file_path)
+
+    if clear_history:
+        if typer.confirm("Are you sure you want to clear the entire history?"):
+            history.clear_history()
+            console.print("[green]History cleared successfully.[/green]")
+        else:
+            console.print("[yellow]History clear operation cancelled.[/yellow]")
+        return
+
+    if last_session:
+        last_sess = history.get_last_session()
+        if last_sess:
+            session_id = last_sess["id"]
+        else:
+            console.print(
+                "[yellow]No sessions in history to show the last one.[/yellow]"
+            )
+            return
+
     sessions = history.sessions[-limit:] if limit > 0 else history.sessions
 
     if not sessions:
@@ -589,6 +629,13 @@ def main(
     log_folder_name: str = typer.Option(
         None, "--log-folder", help="Folder for log files", show_default=False
     ),
+    clear_log: bool = typer.Option(
+        False,
+        "--clear-log",
+        help="Clear the log file and exit.",
+        is_flag=True,
+        is_eager=True,  # Process this before other options/commands
+    ),
     settings_file_name: str = typer.Option(
         DEFAULT_SETTINGS["settings_file_name"],
         "--settings-file",
@@ -617,7 +664,29 @@ def main(
     ),
 ):
     """TidyFiles - Organize your files automatically by type."""
-    # If no source_dir and no command is being executed, show help
+    # Handle --clear-log flag first, as it's an independent action
+    if clear_log:
+        # Determine log file path using default settings
+        log_folder = Path(DEFAULT_SETTINGS["log_folder_name"])
+        log_file = log_folder / DEFAULT_SETTINGS["log_file_name"]
+
+        if typer.confirm(
+            f"Are you sure you want to delete the log file at '{log_file}'?"
+        ):
+            try:
+                log_file.unlink(missing_ok=True)
+                console.print(
+                    f"[green]Log file '{log_file}' deleted successfully.[/green]"
+                )
+            except OSError as e:
+                console.print(f"[red]Error deleting log file: {e}[/red]")
+                raise typer.Exit(1)  # Exit with error if deletion fails
+        else:
+            console.print("[yellow]Log file deletion cancelled.[/yellow]")
+        raise typer.Exit(0)  # Exit after handling the flag
+
+    # If no source_dir and no command is being executed (and --clear-log wasn't used),
+    # show help.
     if not source_dir and not ctx.invoked_subcommand:
         # Force help display with all options
         ctx.get_help()

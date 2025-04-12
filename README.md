@@ -106,6 +106,12 @@ tidyfiles history
 tidyfiles history --limit 20
 ```
 
+* ###### View the last session's details
+
+```bash
+tidyfiles history --last-session
+```
+
 * ###### View detailed session information
 
 ```bash
@@ -123,6 +129,23 @@ tidyfiles undo --session 3
 ```bash
 tidyfiles undo --session 3 --number 2
 ```
+
+---
+
+**_If you decide to make cleanup you can use:_**
+
+* ###### Clear the log file
+
+```bash
+tidyfiles --clear-log
+```
+
+* ###### Clear the entire history
+
+```bash
+tidyfiles history --clear-history
+```
+
 
 ## 📁 Example Usage
 

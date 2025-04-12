@@ -321,31 +321,6 @@ class OperationHistory:
             logger.error(f"Failed to undo operation: {e}")
             return False
 
-    def undo_last_operation(
-        self, progress=None, task_id=None, logger: Optional[logger] = None
-    ) -> bool:
-        """Undo the last operation in the most recent session.
-
-        Args:
-            progress (Progress, optional): Rich progress bar instance for displaying progress.
-            task_id (int, optional): Task ID for the progress bar.
-            logger (Optional[logger]): Logger instance for logging undo actions.
-
-        Returns:
-            bool: True if operation was successfully undone, False otherwise
-        """
-        if not self.sessions:
-            return False
-        return self.undo_operation(
-            self.sessions[-1]["id"], None, progress, task_id, logger
-        )
-
-    def get_last_operation(self) -> Optional[Dict[str, Any]]:
-        """Get the last operation from history."""
-        if not self.sessions or not self.sessions[-1]["operations"]:
-            return None
-        return self.sessions[-1]["operations"][-1]
-
     def clear_history(self):
         """Clear all operation history."""
         self.sessions = []
