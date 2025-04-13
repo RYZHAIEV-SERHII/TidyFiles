@@ -4,6 +4,7 @@ from loguru import logger
 from pathlib import Path
 from contextlib import contextmanager
 from unittest.mock import patch
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
@@ -33,6 +34,17 @@ def test_logger():
     test_handler_id = logger.add(lambda msg: None, level="INFO")  # Add a null handler
     yield logger
     logger.remove(test_handler_id)  # Clean up the test handler
+
+
+@pytest.fixture
+def mock_progress_bar():
+    """Create a mock progress bar object."""
+    # Mock the Progress object and its methods
+    mock_bar = MagicMock()
+    mock_bar.add_task.return_value = 1  # Return a dummy task ID
+    mock_bar.update = MagicMock()
+    mock_bar.remove_task = MagicMock()
+    return mock_bar
 
 
 @pytest.fixture

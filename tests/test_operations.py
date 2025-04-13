@@ -1,5 +1,8 @@
 import shutil
 from pathlib import Path
+from unittest.mock import patch
+from unittest.mock import MagicMock
+from loguru import logger
 
 from tidyfiles.operations import (
     create_plans,
@@ -635,3 +638,61 @@ def test_delete_dirs_with_history_error(tmp_path, test_logger, monkeypatch):
     assert num_deleted == 1
     assert total == 1
     assert not test_dir.exists()
+
+
+def test_delete_dirs_empty_list(test_logger):
+    """Test delete_dirs with an empty list of directories."""
+    empty_dirs = []
+    num_deleted, total = delete_dirs(empty_dirs, test_logger, dry_run=False)
+    assert num_deleted == 0
+    assert total == 0
+
+
+@patch("loguru.logger.info")
+def test_delete_dir_dry_run(mock_loguru_info, tmp_path, mock_progress_bar):
+    """Test delete_dirs in dry_run mode."""
+    empty_dir = tmp_path / "empty_dir"
+    empty_dir.mkdir()
+    delete_plan = [empty_dir]
+    history = MagicMock()
+
+    num_deleted, total_dirs = delete_dirs(
+        delete_plan,
+        logger=logger,
+        dry_run=True,
+        history=history,
+        progress=mock_progress_bar,
+    )
+    assert num_deleted == 0
+    assert total_dirs == 1
+    # Check that the mock logger's info method was called
+    expected_log = f"DELETE_DIR [DRY-RUN] | PATH: {empty_dir}"
+    assert any(call.args[0] == expected_log for call in mock_loguru_info.call_args_list)
+    assert empty_dir.exists()  # Ensure directory was not deleted
+    history.add_operation.assert_not_called()
+
+
+@patch("loguru.logger.error")
+def test_delete_dir_exception(mock_loguru_error, tmp_path, mock_progress_bar):
+    """Test delete_dirs handling exception during directory deletion."""
+    empty_dir = tmp_path / "empty_dir"
+    empty_dir.mkdir()
+    delete_plan = [empty_dir]
+    history = MagicMock()
+
+    # Mock shutil.rmtree to raise an exception
+    with patch("shutil.rmtree") as mock_rmtree:
+        mock_rmtree.side_effect = OSError("Permission denied")
+        num_deleted, total_dirs = delete_dirs(
+            delete_plan,
+            logger=logger,
+            dry_run=False,
+            history=history,
+            progress=mock_progress_bar,
+        )
+        assert num_deleted == 0
+        assert total_dirs == 1
+        # Check that the mock logger's error method was called
+        mock_loguru_error.assert_called_once()
+        assert "Permission denied" in mock_loguru_error.call_args[0][0]
+        history.add_operation.assert_not_called()

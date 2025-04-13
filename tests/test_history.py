@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 from tidyfiles.history import OperationHistory
 
@@ -831,3 +831,59 @@ def test_undo_session_with_mixed_operation_statuses(tmp_path):
     assert history.sessions[0]["operations"][0]["status"] == "undone"
     assert history.sessions[0]["operations"][1]["status"] == "undone"
     assert history.sessions[0]["status"] == "undone"
+
+
+def test_history_undo_corrupt_operation(tmp_path):
+    """Test undoing a corrupt operation."""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create a session with one operation
+    history.start_session(tmp_path, tmp_path)
+    history.add_operation("move", tmp_path / "source.txt", tmp_path / "dest.txt")
+
+    # Corrupt the operation by removing source and destination
+    history.sessions[-1]["operations"][0].pop("source", None)
+    history.sessions[-1]["operations"][0].pop("destination", None)
+    history._save_history()
+
+    # Try to undo the corrupted operation
+    session_id = history.sessions[-1]["id"]
+    mock_logger = MagicMock()
+    undone = history.undo_operation(session_id, 0, logger=mock_logger)
+    assert not undone, "Undo should fail for corrupt operation"
+    mock_logger.error.assert_called_once()
+
+    # Check history wasn't accidentally saved in a corrupted state
+    new_history = OperationHistory(history_file)
+    assert len(new_history.sessions) == 1
+    assert len(new_history.sessions[0]["operations"]) == 1
+    assert "source" not in new_history.sessions[0]["operations"][0]
+    assert "destination" not in new_history.sessions[0]["operations"][0]
+
+
+def test_history_undo_unknown_operation_type(tmp_path):
+    """Test undoing an operation with an unknown type."""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create a session with one operation
+    history.start_session(tmp_path, tmp_path)
+    unknown_op = {
+        "type": "unknown_op",
+        "source": str(tmp_path / "source.txt"),
+        "destination": str(tmp_path / "dest.txt"),
+        "timestamp": datetime.now().isoformat(),
+        "status": "completed",
+    }
+    history.sessions[-1]["operations"] = [unknown_op]
+    history._save_history()
+
+    # Try to undo the unknown operation
+    session_id = history.sessions[-1]["id"]
+    mock_logger = MagicMock()
+    undone = history.undo_operation(session_id, 0, logger=mock_logger)
+    assert not undone, "Undo should fail for unknown operation type"
+    mock_logger.warning.assert_called_once_with(
+        f"Invalid operation type: {unknown_op['type']}"
+    )
