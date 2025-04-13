@@ -655,6 +655,7 @@ def main(
     version: bool = typer.Option(
         False,
         "--version",
+        "-v",
         callback=version_callback,
         is_eager=True,
         help="Show the application version and exit.",

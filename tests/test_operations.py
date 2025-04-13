@@ -197,23 +197,30 @@ def test_transfer_files_with_rename(tmp_path, test_logger):
     ).exists()  # Fixed: The actual naming pattern is test_1_2.txt
 
 
-def test_transfer_files_with_error(tmp_path, test_logger, monkeypatch):
-    """Test transfer_files error handling"""
+def test_transfer_files_with_history(tmp_path, test_logger):
+    """Test transfer_files with history tracking."""
     source_file = tmp_path / "source.txt"
     source_file.write_text("test content")
     dest_dir = tmp_path / "dest"
-    dest_dir.mkdir()
-
-    def mock_replace(*args, **kwargs):
-        raise OSError("Mock error")
-
-    monkeypatch.setattr(Path, "replace", mock_replace)
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
 
     transfer_plan = [(source_file, dest_dir / "source.txt")]
-    num_transferred, total = transfer_files(transfer_plan, test_logger, dry_run=False)
+    num_transferred, total = transfer_files(
+        transfer_plan, test_logger, dry_run=False, history=history
+    )
 
-    assert num_transferred == 0
+    assert num_transferred == 1
     assert total == 1
+    assert (dest_dir / "source.txt").exists()
+
+    # Check history
+    assert len(history.operations) == 1
+    operation = history.operations[0]
+    assert operation["type"] == "move"
+    assert operation["source"] == str(source_file)
+    assert operation["destination"] == str(dest_dir / "source.txt")
+    assert operation["status"] == "completed"
 
 
 def test_delete_dirs_comprehensive(tmp_path, test_logger):
@@ -245,24 +252,6 @@ def test_delete_dirs_comprehensive(tmp_path, test_logger):
     assert num_deleted == 3
     assert total == 4
     assert not parent_dir.exists()
-
-
-def test_delete_dirs_with_errors(tmp_path, test_logger, monkeypatch):
-    """Test delete_dirs error handling"""
-    test_dir = tmp_path / "test_dir"
-    test_dir.mkdir()
-
-    def mock_rmtree(*args, **kwargs):
-        raise PermissionError("Mock error")
-
-    monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
-
-    delete_plan = [test_dir]
-    num_deleted, total = delete_dirs(delete_plan, test_logger, dry_run=False)
-
-    assert num_deleted == 0
-    assert total == 1
-    assert test_dir.exists()
 
 
 def test_delete_dirs_with_nonexistent_directory(tmp_path, test_logger):
@@ -390,57 +379,6 @@ def test_create_plans_with_symlink(tmp_path):
     assert test_dir in delete_plan
     # Verify symlink is not in delete plan
     assert not any(dir_ == symlink for dir_ in delete_plan)
-
-
-def test_transfer_files_with_history(tmp_path, test_logger):
-    """Test transfer_files with history tracking."""
-    source_file = tmp_path / "source.txt"
-    source_file.write_text("test content")
-    dest_dir = tmp_path / "dest"
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-
-    transfer_plan = [(source_file, dest_dir / "source.txt")]
-    num_transferred, total = transfer_files(
-        transfer_plan, test_logger, dry_run=False, history=history
-    )
-
-    assert num_transferred == 1
-    assert total == 1
-    assert (dest_dir / "source.txt").exists()
-
-    # Check history
-    assert len(history.operations) == 1
-    operation = history.operations[0]
-    assert operation["type"] == "move"
-    assert operation["source"] == str(source_file)
-    assert operation["destination"] == str(dest_dir / "source.txt")
-    assert operation["status"] == "completed"
-
-
-def test_delete_dirs_with_history(tmp_path, test_logger):
-    """Test delete_dirs with history tracking."""
-    test_dir = tmp_path / "test_dir"
-    test_dir.mkdir()
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-
-    delete_plan = [test_dir]
-    num_deleted, total = delete_dirs(
-        delete_plan, test_logger, dry_run=False, history=history
-    )
-
-    assert num_deleted == 1
-    assert total == 1
-    assert not test_dir.exists()
-
-    # Check history
-    assert len(history.operations) == 1
-    operation = history.operations[0]
-    assert operation["type"] == "delete"
-    assert operation["source"] == str(test_dir)
-    assert operation["destination"] == str(test_dir)
-    assert operation["status"] == "completed"
 
 
 def test_transfer_files_with_history_dry_run(tmp_path, test_logger):

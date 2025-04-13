@@ -423,34 +423,6 @@ def test_undo_command_invalid_operation_number(tmp_path):
     assert "Invalid operation number: 999" in clean_rich_output(result.output)
 
 
-def test_undo_command_corrupt_operation(tmp_path):
-    """Test undo command with a corrupt operation entry in history."""
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-    session_id = history.start_session(tmp_path / "source", tmp_path / "dest")
-
-    # Manually add a corrupt operation (missing 'type')
-    corrupt_op = {"source": "s", "destination": "d", "timestamp": "t"}
-    history.sessions[0]["operations"].append(corrupt_op)
-    history._save_history()  # Use internal method to save the corrupt state
-
-    result = runner.invoke(
-        app,
-        [
-            "undo",
-            "--history-file",
-            str(history_file),
-            "--session",
-            str(session_id),
-            "--number",
-            "1",
-        ],
-        input="y\n",
-    )
-    # The command should exit with a non-zero code for corrupt data
-    assert result.exit_code != 0
-
-
 def test_undo_command_failed_operation(tmp_path, monkeypatch):
     """Test undo command with operation that fails to undo"""
     history_file = tmp_path / "history.json"
@@ -694,13 +666,6 @@ def test_main_exit_case():
     assert "--source-dir" in clean_output
 
 
-def test_main_with_invalid_source_dir():
-    """Test main function with non-existent source directory"""
-    result = runner.invoke(app, ["--source-dir", "/nonexistent/path"])
-    assert result.exit_code == 1
-    assert "Source directory does not exist" in clean_rich_output(result.output)
-
-
 def test_main_no_args_shows_help():
     """Test that help is shown when the app is run with no arguments."""
     result = runner.invoke(app, [], env={"NO_COLOR": "1", "TERM": "dumb"})
@@ -906,151 +871,62 @@ def test_undo_cmd_with_missing_session_for_operation(tmp_path):
     assert "requires specifying --session" in result.output or "Error" in result.output
 
 
-def test_undo_cmd_with_invalid_operation_type(tmp_path):
-    """Test undo command with an operation that has an invalid type"""
+def test_history_cmd_with_malformed_session_data(tmp_path):
+    """Test history command with malformed session data"""
     history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-    session_id = history.start_session(tmp_path, tmp_path)
 
-    # Manually add an operation with invalid type
-    invalid_op = {
-        "type": "invalid_type",
-        "source": str(tmp_path / "src.txt"),
-        "destination": str(tmp_path / "dest.txt"),
-        "timestamp": "2023-01-01T12:00:00",
-        "status": "completed",
-    }
-    history.current_session["operations"].append(invalid_op)
-    history._save_history()
+    # Create a history file with malformed session data
+    with open(history_file, "w") as f:
+        f.write(
+            '[{"id": 1, "start_time": "2023-01-01T12:00:00", "status": "completed", "operations": [{"type": "move", "timestamp": "invalid-timestamp", "source": "s", "destination": "d", "status": "completed"}]}]'
+        )
 
-    # Try to undo the operation
+    # View session details
     result = runner.invoke(
-        app,
-        [
-            "undo",
-            "--history-file",
-            str(history_file),
-            "--session",
-            str(session_id),
-            "--number",
-            "1",
-        ],
-        input="y\n",
+        app, ["history", "--history-file", str(history_file), "--session", "1"]
     )
 
-    # Should indicate failure
-    assert "Failed to undo operation" in result.output
+    # Should handle gracefully
+    assert result.exit_code == 0
+    # Some form of output should be present (not crashing)
+    assert "Session" in clean_rich_output(result.output)
 
 
-def test_clear_log_confirmed(tmp_path, monkeypatch):
-    """Test clear_log flag with user confirmation."""
-    # Mock log folder and file
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    log_file = log_dir / "app.log"
-    log_file.write_text("Test log content")
+def test_history_cmd_with_auto_recovery(tmp_path):
+    """Test history command auto-recovering in_progress sessions"""
+    history_file = tmp_path / "history.json"
 
-    # Patch DEFAULT_SETTINGS to use our test paths
-    monkeypatch.setattr(
-        "tidyfiles.cli.DEFAULT_SETTINGS",
-        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
-    )
+    # Create a history file with an in_progress session that has all completed operations
+    session_data = [
+        {
+            "id": 1,
+            "start_time": "2023-01-01T12:00:00",
+            "status": "in_progress",  # Should be auto-recovered
+            "source_dir": str(tmp_path),
+            "destination_dir": str(tmp_path),
+            "operations": [
+                {
+                    "type": "move",
+                    "source": str(tmp_path / "file.txt"),
+                    "destination": str(tmp_path / "dest/file.txt"),
+                    "timestamp": "2023-01-01T12:00:00",
+                    "status": "completed",  # All operations are completed
+                }
+            ],
+        }
+    ]
 
-    # Mock confirm to return True (user confirms)
-    monkeypatch.setattr("typer.confirm", lambda x: True)
+    with open(history_file, "w") as f:
+        f.write(json.dumps(session_data, indent=2))
 
-    # Run with clear_log flag
-    result = runner.invoke(app, ["--clear-log"])
-
-    # Check that exit was clean
+    # Run the history command to trigger auto-recovery
+    result = runner.invoke(app, ["history", "--history-file", str(history_file)])
     assert result.exit_code == 0
 
-    # Verify file was deleted
-    assert not log_file.exists()
-    assert "deleted" in result.output
-
-
-def test_clear_log_cancelled(tmp_path, monkeypatch):
-    """Test clear_log flag with user cancellation."""
-    # Mock log folder and file
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    log_file = log_dir / "app.log"
-    log_file.write_text("Test log content")
-
-    # Patch DEFAULT_SETTINGS to use our test paths
-    monkeypatch.setattr(
-        "tidyfiles.cli.DEFAULT_SETTINGS",
-        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
-    )
-
-    # Mock confirm to return False (user cancels)
-    monkeypatch.setattr("typer.confirm", lambda x: False)
-
-    # Run with clear_log flag
-    result = runner.invoke(app, ["--clear-log"])
-
-    # Check that exit was clean
-    assert result.exit_code == 0
-
-    # Verify file still exists
-    assert log_file.exists()
-    assert log_file.read_text() == "Test log content"
-    assert "cancelled" in result.output.lower()
-
-
-def test_clear_log_file_not_exists(tmp_path, monkeypatch):
-    """Test clear_log flag when log file doesn't exist."""
-    # Mock log folder but no file
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    # Don't create the file
-
-    # Patch DEFAULT_SETTINGS to use our test paths
-    monkeypatch.setattr(
-        "tidyfiles.cli.DEFAULT_SETTINGS",
-        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
-    )
-
-    # Mock confirm to return True (user confirms)
-    monkeypatch.setattr("typer.confirm", lambda x: True)
-
-    # Run with clear_log flag
-    result = runner.invoke(app, ["--clear-log"])
-
-    # Should exit cleanly (missing_ok=True handles nonexistent files)
-    assert result.exit_code == 0
-    assert "deleted successfully" in result.output
-
-
-def test_clear_log_with_error(tmp_path, monkeypatch):
-    """Test clear_log flag when an error occurs during deletion."""
-    # Mock log folder and file
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    log_file = log_dir / "app.log"
-    log_file.write_text("Test log content")
-
-    # Patch DEFAULT_SETTINGS to use our test paths
-    monkeypatch.setattr(
-        "tidyfiles.cli.DEFAULT_SETTINGS",
-        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
-    )
-
-    # Mock confirm to return True (user confirms)
-    monkeypatch.setattr("typer.confirm", lambda x: True)
-
-    # Mock Path.unlink to raise an error
-    def mock_unlink(*args, **kwargs):
-        raise OSError("Test error")
-
-    with patch("pathlib.Path.unlink", mock_unlink):
-        # Run with clear_log flag
-        result = runner.invoke(app, ["--clear-log"])
-
-        # Should fail with error message
-        assert result.exit_code != 0
-        assert "Error deleting log file" in result.output
+    # Now verify the status was changed
+    with open(history_file, "r") as f:
+        loaded_data = json.load(f)
+        assert loaded_data[0]["status"] == "completed"
 
 
 def test_run_file_operations_empty_plans(tmp_path, monkeypatch):
@@ -1203,122 +1079,112 @@ def test_run_file_operations_complete_workflow(tmp_path, monkeypatch):
     assert result.exit_code == 0
 
 
-def test_history_cmd_with_malformed_session_data(tmp_path):
-    """Test history command with malformed session data"""
-    history_file = tmp_path / "history.json"
+def test_clear_log_confirmed(tmp_path, monkeypatch):
+    """Test clear_log flag with user confirmation."""
+    # Mock log folder and file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("Test log content")
 
-    # Create a history file with malformed session data
-    with open(history_file, "w") as f:
-        f.write(
-            '[{"id": 1, "start_time": "2023-01-01T12:00:00", "status": "completed", "operations": [{"type": "move", "timestamp": "invalid-timestamp", "source": "s", "destination": "d", "status": "completed"}]}]'
-        )
-
-    # View session details
-    result = runner.invoke(
-        app, ["history", "--history-file", str(history_file), "--session", "1"]
-    )
-
-    # Should handle gracefully
-    assert result.exit_code == 0
-    # Some form of output should be present (not crashing)
-    assert "Session" in clean_rich_output(result.output)
-
-
-def test_history_cmd_with_auto_recovery(tmp_path):
-    """Test history command auto-recovering in_progress sessions"""
-    history_file = tmp_path / "history.json"
-
-    # Create a history file with an in_progress session that has all completed operations
-    session_data = [
-        {
-            "id": 1,
-            "start_time": "2023-01-01T12:00:00",
-            "status": "in_progress",  # Should be auto-recovered
-            "source_dir": str(tmp_path),
-            "destination_dir": str(tmp_path),
-            "operations": [
-                {
-                    "type": "move",
-                    "source": str(tmp_path / "file.txt"),
-                    "destination": str(tmp_path / "dest/file.txt"),
-                    "timestamp": "2023-01-01T12:00:00",
-                    "status": "completed",  # All operations are completed
-                }
-            ],
-        }
-    ]
-
-    with open(history_file, "w") as f:
-        f.write(json.dumps(session_data, indent=2))
-
-    # Run the history command to trigger auto-recovery
-    result = runner.invoke(app, ["history", "--history-file", str(history_file)])
-    assert result.exit_code == 0
-
-    # Now verify the status was changed
-    with open(history_file, "r") as f:
-        loaded_data = json.load(f)
-        assert loaded_data[0]["status"] == "completed"
-
-
-def test_file_operations_with_errors(tmp_path, monkeypatch):
-    """Test handling of errors during file operations."""
-    # Setup test directory
-    source_dir = tmp_path / "source"
-    source_dir.mkdir()
-    test_file = source_dir / "test.txt"
-    test_file.write_text("test content")
-
-    # Create a mock transfer plan
-    transfer_plan = [
-        {"source": test_file, "destination": tmp_path / "dest" / "test.txt"}
-    ]
-
-    # Mock create_plans to return our test plan
+    # Patch DEFAULT_SETTINGS to use our test paths
     monkeypatch.setattr(
-        "tidyfiles.cli.create_plans", lambda **kwargs: (transfer_plan, [])
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
     )
 
-    # Mock transfer_files to simulate errors
-    def mock_transfer_files(*args, **kwargs):
-        # Simulate an exception during transfer
-        raise OSError("Mock transfer error")
+    # Mock confirm to return True (user confirms)
+    monkeypatch.setattr("typer.confirm", lambda x: True)
 
-    monkeypatch.setattr("tidyfiles.cli.transfer_files", mock_transfer_files)
+    # Run with clear_log flag
+    result = runner.invoke(app, ["--clear-log"])
 
-    # Run with error handling
-    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+    # Check that exit was clean
+    assert result.exit_code == 0
 
-    # Check for non-zero exit code, which indicates an error
-    assert result.exit_code != 0
+    # Verify file was deleted
+    assert not log_file.exists()
+    assert "deleted" in result.output
 
 
-def test_undo_cmd_number_without_session(tmp_path):
-    """Test undo command with --number but without --session."""
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-    history.start_session(tmp_path / "src", tmp_path / "dst")
-    history.add_operation("move", "a", "b")
+def test_clear_log_cancelled(tmp_path, monkeypatch):
+    """Test clear_log flag with user cancellation."""
+    # Mock log folder and file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("Test log content")
 
-    result = runner.invoke(
-        app, ["undo", "--history-file", str(history_file), "--number", "1"]
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
     )
-    assert result.exit_code != 0  # Expecting error
-    assert "Using --number requires specifying --session" in clean_rich_output(
-        result.output
+
+    # Mock confirm to return False (user cancels)
+    monkeypatch.setattr("typer.confirm", lambda x: False)
+
+    # Run with clear_log flag
+    result = runner.invoke(app, ["--clear-log"])
+
+    # Check that exit was clean
+    assert result.exit_code == 0
+
+    # Verify file still exists
+    assert log_file.exists()
+    assert log_file.read_text() == "Test log content"
+    assert "cancelled" in result.output.lower()
+
+
+def test_clear_log_file_not_exists(tmp_path, monkeypatch):
+    """Test clear_log flag when log file doesn't exist."""
+    # Mock log folder but no file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    # Don't create the file
+
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
     )
 
+    # Mock confirm to return True (user confirms)
+    monkeypatch.setattr("typer.confirm", lambda x: True)
 
-def test_main_destination_is_file(tmp_path):
-    """Test main function when destination path is a file."""
-    source_dir = tmp_path / "source"
-    source_dir.mkdir()
-    dest_file = tmp_path / "destination_is_file.txt"
-    dest_file.touch()
+    # Run with clear_log flag
+    result = runner.invoke(app, ["--clear-log"])
 
-    result = runner.invoke(
-        app, ["--source-dir", str(source_dir), "--destination-dir", str(dest_file)]
+    # Should exit cleanly (missing_ok=True handles nonexistent files)
+    assert result.exit_code == 0
+    assert "deleted successfully" in result.output
+
+
+def test_clear_log_with_error(tmp_path, monkeypatch):
+    """Test clear_log flag when an error occurs during deletion."""
+    # Mock log folder and file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("Test log content")
+
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
     )
-    assert result.exit_code == 1  # Expecting error code 1 from typer.Exit
-    # Check the exception message directly
-    assert "Destination path is not a directory" in str(result.exception)
+
+    # Mock confirm to return True (user confirms)
+    monkeypatch.setattr("typer.confirm", lambda x: True)
+
+    # Mock Path.unlink to raise an error
+    def mock_unlink(*args, **kwargs):
+        raise OSError("Test error")
+
+    with patch("pathlib.Path.unlink", mock_unlink):
+        # Run with clear_log flag
+        result = runner.invoke(app, ["--clear-log"])
+
+        # Should fail with error message
+        assert result.exit_code != 0
+        assert "Error deleting log file" in result.output

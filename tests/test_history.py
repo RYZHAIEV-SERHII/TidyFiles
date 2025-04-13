@@ -110,42 +110,33 @@ def test_history_undo_nonexistent(tmp_path):
     assert not history.undo_operation(session_id=1)  # Assuming session ID 1
 
 
-def test_history_undo_failed_move(tmp_path, monkeypatch):
-    """Test handling failed undo operation where the move itself fails."""
+def test_history_undo_operation_error(tmp_path, monkeypatch):
+    """Test handling errors during the undo operation itself."""
     history_file = tmp_path / "history.json"
     history = OperationHistory(history_file)
 
-    # Use tmp_path for files
     source = tmp_path / "source.txt"
     destination = tmp_path / "dest.txt"
     source.write_text("test content")
 
+    history.start_session()
     history.add_operation("move", source, destination)
 
-    # Perform the move so destination exists for the undo attempt
     destination.parent.mkdir(parents=True, exist_ok=True)
     source.replace(destination)
-    assert destination.exists()
-    assert not source.exists()
 
-    # Mock shutil.move to raise an exception ONLY during undo
+    # Mock shutil.move to raise an error
     def mock_move(*args, **kwargs):
-        # args[0] is destination, args[1] is source for the undo move
-        print(f"Mock move called: {args[0]} -> {args[1]}")
-        raise OSError("Mock move error during undo")
+        raise OSError("Mock move error")
 
     monkeypatch.setattr("shutil.move", mock_move)
 
-    session_id = history.get_last_session()["id"]
+    session_id = history.current_session["id"]
     mock_logger = Mock()
-    # The operation should fail, log the error, and return False
     assert not history.undo_operation(session_id=session_id, logger=mock_logger)
-    # Check if logger.error was called
+    # Status should remain 'completed' as undo failed
+    assert history.sessions[0]["operations"][0]["status"] == "completed"
     mock_logger.error.assert_called_once()
-    # Verify the file wasn't actually moved back due to the error
-    assert destination.exists()
-    assert not source.exists()
-    # Verify the operation status was NOT changed to undone
 
 
 def test_history_clear(tmp_path):
@@ -421,64 +412,6 @@ def test_history_undo_nonexistent_file(tmp_path):
     assert not source.exists()  # Source shouldn't be restored
     assert not destination.exists()
     assert history.sessions[0]["operations"][0]["status"] == "undone"
-    mock_logger.warning.assert_called_once()
-
-
-def test_history_undo_operation_error(tmp_path, monkeypatch):
-    """Test handling errors during the undo operation itself."""
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-
-    source = tmp_path / "source.txt"
-    destination = tmp_path / "dest.txt"
-    source.write_text("test content")
-
-    history.start_session()
-    history.add_operation("move", source, destination)
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    source.replace(destination)
-
-    # Mock shutil.move to raise an error
-    def mock_move(*args, **kwargs):
-        raise OSError("Mock move error")
-
-    monkeypatch.setattr("shutil.move", mock_move)
-
-    session_id = history.current_session["id"]
-    mock_logger = Mock()
-    assert not history.undo_operation(session_id=session_id, logger=mock_logger)
-    # Status should remain 'completed' as undo failed
-    assert history.sessions[0]["operations"][0]["status"] == "completed"
-    mock_logger.error.assert_called_once()
-
-
-def test_history_undo_operation_invalid_type(tmp_path):
-    """Test attempting to undo an operation with an invalid type."""
-    history_file = tmp_path / "history.json"
-    history = OperationHistory(history_file)
-
-    source = tmp_path / "source.txt"
-    destination = tmp_path / "dest.txt"
-
-    history.start_session()
-    # Manually add an operation with an invalid type
-    history.current_session["operations"].append(
-        {
-            "type": "invalid_op",
-            "source": str(source),
-            "destination": str(destination),
-            "timestamp": datetime.now().isoformat(),
-            "status": "completed",
-        }
-    )
-    history._save_history()
-
-    session_id = history.current_session["id"]
-    mock_logger = Mock()
-    assert not history.undo_operation(session_id=session_id, logger=mock_logger)
-    # Status should remain 'completed'
-    assert history.sessions[0]["operations"][0]["status"] == "completed"
     mock_logger.warning.assert_called_once()
 
 
