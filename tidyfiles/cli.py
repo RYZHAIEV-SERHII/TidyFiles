@@ -114,13 +114,11 @@ def history(
         False,
         "--clear-history",
         help="Clear the entire operation history",
-        is_flag=True,
     ),
     last_session: bool = typer.Option(
         False,
         "--last-session",
         help="Show details for the last session",
-        is_flag=True,
     ),
 ):
     """Show the history of file organization operations.
@@ -591,7 +589,7 @@ def main(
         show_default=False,
     ),
     dry_run: bool = typer.Option(
-        False, "--dry-run/--no-dry-run", help="Run in dry-run mode (no actual changes)"
+        False, "--dry-run", help="Run in dry-run mode (no actual changes)"
     ),
     unrecognized_file_name: str = typer.Option(
         DEFAULT_SETTINGS["unrecognized_file_name"],
@@ -634,7 +632,6 @@ def main(
         False,
         "--clear-log",
         help="Clear the log file and exit.",
-        is_flag=True,
         is_eager=True,  # Process this before other options/commands
     ),
     settings_file_name: str = typer.Option(
@@ -656,12 +653,11 @@ def main(
         show_default=False,
     ),
     version: bool = typer.Option(
-        None,
+        False,
         "--version",
-        "-v",
-        help="Show the application's version and exit.",
         callback=version_callback,
         is_eager=True,
+        help="Show the application version and exit.",
     ),
 ):
     """TidyFiles - Organize your files automatically by type."""
