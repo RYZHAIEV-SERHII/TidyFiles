@@ -30,7 +30,27 @@ class SessionDict(TypedDict, total=False):
 
 
 class OperationHistory:
-    """Class for managing operation history."""
+    """Manages the history of file operations (move, delete) across multiple sessions.
+
+    This class handles loading, saving, and modifying the operation history stored
+    in a JSON file. It organizes operations into sessions, where each session
+    corresponds to a single run of the tidyfiles command.
+
+    Key functionalities include:
+    - Starting and managing sessions.
+    - Adding individual file operations (move, delete) to the current session.
+    - Loading history from a file, including handling older formats and recovering
+      incomplete sessions.
+    - Saving the history back to the file.
+    - Undoing specific operations or entire sessions.
+    - Clearing the entire history.
+    - Retrieving the last session.
+
+    Attributes:
+        history_file (Path): The path to the JSON file where the history is stored.
+        sessions (List[SessionDict]): A list of all past sessions, loaded from the history file.
+        current_session (Optional[SessionDict]): The currently active session, or None.
+    """
 
     def __init__(self, history_file: Path):
         """Initialize history manager.

@@ -74,6 +74,7 @@ console = Console()
 
 
 def version_callback(value: bool):
+    """Show the application version and exit if the --version flag is used."""
     if value:
         typer.echo(f"TidyFiles version: {__version__}")
         raise typer.Exit()

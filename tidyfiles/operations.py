@@ -54,12 +54,12 @@ def get_folder_path(
         full path to the category folder.
 
         Args:
-            plan (Dict[str, Any]): The cleaning plan dictionary or sub-dictionary to search in
-            extension (str): The file extension to find (without the dot)
-            current_path (Optional[Path]): The current path in the traversal (used for recursion)
+            plan (Dict[str, Any]): The cleaning plan dictionary or sub-dictionary to search in.
+            extension (str): The file extension to find (including the dot, e.g., '.txt').
+            current_path (Optional[Path]): The current path being built during recursion.
 
         Returns:
-            The Path to the category folder if found, None otherwise
+            Optional[Path]: The relative path to the category folder if found, None otherwise.
         """
         for category, value in plan.items():
             if isinstance(value, dict):
@@ -79,7 +79,7 @@ def get_folder_path(
                 return current_path / category if current_path else Path(category)
         return None
 
-    # Start with the root path
+    # Start search from the root of the cleaning plan
     result = find_category(cleaning_plan, file.suffix)
     return result if result else unrecognized_file
 

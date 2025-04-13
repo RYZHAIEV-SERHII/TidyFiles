@@ -350,15 +350,19 @@ def get_settings(
 
     file_settings = load_settings(settings_file_path)
 
-    # Combine settings
+    # Combine settings using ChainMap for priority: CLI > file > defaults
     raw_settings = dict(ChainMap(cli_settings, file_settings, default_settings))
+
+    # --- Process and resolve paths ---
 
     source_dir = Path(raw_settings["source_dir"]).resolve()
     destination_dir = (
         Path(raw_settings["destination_dir"]).resolve()
         if raw_settings["destination_dir"]
-        else source_dir
+        else source_dir  # Default to source if destination is not provided
     )
+
+    # Resolve cleaning plan paths relative to the destination directory
     if raw_settings["cleaning_plan"]:
         cleaning_plan = {
             (destination_dir / path).resolve(): indexes
@@ -373,15 +377,18 @@ def get_settings(
     # Determine log folder path based on settings or default
     log_folder_setting = raw_settings.get("log_folder_name")
     if log_folder_setting:
-        log_folder_path = Path(log_folder_setting)
+        log_folder_path = Path(log_folder_setting).resolve()
     else:
-        log_folder_path = Path(DEFAULT_SETTINGS["log_folder_name"])
-
+        # Fallback to the default log folder name if not specified
+        log_folder_path = Path(DEFAULT_SETTINGS["log_folder_name"]).resolve()
     log_file_path = (log_folder_path / raw_settings["log_file_name"]).resolve()
 
+    # Resolve exclude paths and add settings/log files to the exclude set
     excludes_set = set(Path(path).resolve() for path in raw_settings["excludes"])
     excludes_set.add(settings_file_path)
     excludes_set.add(log_file_path)
+
+    # --- Construct final settings dictionary ---
 
     settings = {
         "source_dir": source_dir,
