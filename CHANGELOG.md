@@ -1,6 +1,56 @@
 # CHANGELOG
 
 
+## v0.9.0 (2025-04-13)
+
+### Documentation
+
+- Enhance documentation and path resolution in configuration and history management
+  ([`88de71d`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/88de71d90dc59ed403bcda1e4fdf8807a570a242))
+
+### Features
+
+- Add options to clear history and log, and show last session details
+  ([`a2b43ce`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/a2b43ce51aa02b1a5534c70f5022690312e5bde3))
+
+- Add progress bar support for undo and file operations in CLI
+  ([`3a7a702`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/3a7a702051ace239e5e1d939f8ab0e52e54b5b08))
+
+- Cast progress to ProgressBarProtocol for type checking in undo and file operations
+  ([`9da1b9f`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/9da1b9ff675f1f04444de233af475fbd1aa7c281))
+
+- Enhance logging control and improve type annotations in CLI and history modules
+  ([`7b95625`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/7b9562544233e786985d806d52000d856e2bf01b))
+
+- Enhance operation summary with detailed progress bars and duration tracking
+  ([`d2b105f`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/d2b105fa4f2035f5444af262b4b793691a43e629))
+
+- Implement log suppression decorator and enhance session management in history
+  ([`6b54113`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/6b5411371005dd1fa8e66620f4c98fc12f7d03f1))
+
+- Implement signal handling for graceful session closure and enhance history recovery
+  ([`e8bd10d`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/e8bd10dde97f156eb7e8fc56642a823250044af7))
+
+- Improve undo command handling with optional parameters and enhanced session management
+  ([`8df9eb1`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/8df9eb16cad648c0af82bccc9bf656cf6bace200))
+
+- Refine command options and enhance undo operation handling
+  ([`75e1bb0`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/75e1bb02ae28aa2fddb54695be3b58c7278402b0))
+
+### Refactoring
+
+- Streamline test cases and enhance error handling for history and undo operations
+  ([`e7b763b`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/e7b763b0d474d57137de4600f2fba81838bd95c8))
+
+### Testing
+
+- Add mock progress bar fixture and enhance output cleaning in tests
+  ([`f7e505b`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/f7e505be4c1d57958f91e6df19899ceb673e807d))
+
+- Enhance signal handling and improve test coverage for CLI operations
+  ([`c4d8a33`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/c4d8a330e11766d48a9e63c0653f9a568a145b49))
+
+
 ## v0.8.2 (2025-04-08)
 
 ### Bug Fixes
