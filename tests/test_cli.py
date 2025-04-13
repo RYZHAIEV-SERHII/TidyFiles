@@ -6,6 +6,9 @@ import typer
 from typer.testing import CliRunner
 from tidyfiles.cli import app, version_callback, print_welcome_message
 from tidyfiles.history import OperationHistory
+import signal
+from unittest.mock import patch, MagicMock
+from tidyfiles.cli import signal_handler
 
 # Create a test runner with specific settings
 runner = CliRunner(mix_stderr=False)
@@ -59,6 +62,35 @@ def test_print_welcome_message(capsys):
     assert "LIVE MODE" in captured.out
     assert "/test/source" in captured.out
     assert "/test/dest" in captured.out
+
+
+def test_print_welcome_message_edge_cases(capsys):
+    """Test welcome message with edge cases like long paths and None values"""
+    # Test dry-run mode with long paths
+    print_welcome_message(
+        dry_run=True,
+        source_dir="/test/very/long/path/that/will/be/truncated/to/test/truncation/behavior",
+        destination_dir="/another/very/long/path/that/will/be/truncated/to/test/truncation/behavior",
+    )
+    captured = capsys.readouterr()
+    assert "DRY RUN MODE" in captured.out
+    assert "/test/very/long/path" in captured.out
+    assert "/another/very/long/path" in captured.out
+
+    # Test with None destination
+    print_welcome_message(
+        dry_run=False, source_dir="/test/source", destination_dir=None
+    )
+    captured = capsys.readouterr()
+    assert "LIVE MODE" in captured.out
+    assert "/test/source" in captured.out
+    # Just ensure there is some output, not asserting about "None"
+    assert captured.out
+
+    # Test with empty strings
+    print_welcome_message(dry_run=False, source_dir="", destination_dir="")
+    captured = capsys.readouterr()
+    assert "LIVE MODE" in captured.out
 
 
 def test_main_with_invalid_inputs(tmp_path):
@@ -174,7 +206,7 @@ def test_history_command_empty_operations(tmp_path):
         ["history", "--history-file", str(history_file), "--session", str(session_id)],
     )
     assert result.exit_code == 0
-    assert "No operations in session" in clean_rich_output(result.output)
+    assert f"No operations in session {session_id}" in clean_rich_output(result.output)
 
 
 def test_history_command_invalid_operation(tmp_path):
@@ -674,3 +706,584 @@ def test_main_no_args_shows_help():
     # Check for common help text elements
     assert "Usage:" in clean_output
     assert "--source-dir" in clean_output
+
+
+def test_signal_handler():
+    """Test the signal handler function that handles termination signals"""
+    # Create a mock history object
+    mock_history = MagicMock(spec=OperationHistory)
+    mock_history.current_session = {"status": "in_progress"}
+    mock_history._save_history = MagicMock()
+
+    # Mock the global variable
+    with patch("tidyfiles.cli._current_history", mock_history):
+        # Create mock frame for signal handler
+        mock_frame = MagicMock()
+
+        # Call signal handler directly with SIGINT
+        with pytest.raises(SystemExit) as exc_info:
+            signal_handler(signal.SIGINT, mock_frame)
+
+        # Verify the exit code is 1
+        assert exc_info.value.code == 1
+
+        # Verify the current session status was updated
+        assert mock_history.current_session["status"] == "completed"
+
+        # Verify the history was saved
+        mock_history._save_history.assert_called_once()
+
+
+def test_signal_handler_without_session():
+    """Test the signal handler when no session is active"""
+    # Create a mock history object with no current session
+    mock_history = MagicMock(spec=OperationHistory)
+    mock_history.current_session = None
+    mock_history._save_history = MagicMock()
+
+    # Mock the global variable
+    with patch("tidyfiles.cli._current_history", mock_history):
+        # Create mock frame for signal handler
+        mock_frame = MagicMock()
+
+        # Call signal handler directly with SIGINT
+        with pytest.raises(SystemExit) as exc_info:
+            signal_handler(signal.SIGINT, mock_frame)
+
+        # Verify the exit code is 1
+        assert exc_info.value.code == 1
+
+        # Verify save_history wasn't called (no session to update)
+        mock_history._save_history.assert_not_called()
+
+
+def test_signal_handler_without_history():
+    """Test the signal handler when no history object exists"""
+    # Mock the global variable to be None
+    with patch("tidyfiles.cli._current_history", None):
+        # Create mock frame for signal handler
+        mock_frame = MagicMock()
+
+        # Call signal handler directly with SIGINT
+        with pytest.raises(SystemExit) as exc_info:
+            signal_handler(signal.SIGINT, mock_frame)
+
+        # Verify the exit code is 1
+        assert exc_info.value.code == 1
+
+
+def test_signal_handler_with_sigterm():
+    """Test the signal handler with SIGTERM signal"""
+    # Create a mock history object
+    mock_history = MagicMock(spec=OperationHistory)
+    mock_history.current_session = {"status": "in_progress"}
+    mock_history._save_history = MagicMock()
+
+    # Mock the global variable
+    with patch("tidyfiles.cli._current_history", mock_history):
+        # Create mock frame for signal handler
+        mock_frame = MagicMock()
+
+        # Call signal handler directly with SIGTERM
+        with pytest.raises(SystemExit) as exc_info:
+            signal_handler(signal.SIGTERM, mock_frame)
+
+        # Verify the exit code is 1
+        assert exc_info.value.code == 1
+
+        # Verify the current session status was updated
+        assert mock_history.current_session["status"] == "completed"
+
+        # Verify the history was saved
+        mock_history._save_history.assert_called_once()
+
+
+def test_history_cmd_with_clear_history_option(tmp_path):
+    """Test the history command with clear_history=True option"""
+    # Create a history file with some content
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    history.add_operation("move", tmp_path / "file1.txt", tmp_path / "dest/file1.txt")
+
+    # Test clearing history
+    result = runner.invoke(
+        app,
+        ["history", "--history-file", str(history_file), "--clear-history"],
+        input="y\n",  # Confirm the action
+    )
+    assert result.exit_code == 0
+    assert "History cleared successfully" in clean_rich_output(result.output)
+
+    # Verify history was cleared
+    history = OperationHistory(history_file)
+    assert len(history.sessions) == 0
+
+
+def test_history_cmd_with_clear_history_cancelled(tmp_path):
+    """Test the history command with clear_history=True but cancelled"""
+    # Create a history file with some content
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    history.add_operation("move", tmp_path / "file1.txt", tmp_path / "dest/file1.txt")
+
+    # Test cancelling history clear
+    result = runner.invoke(
+        app,
+        ["history", "--history-file", str(history_file), "--clear-history"],
+        input="n\n",  # Cancel the action
+    )
+    assert result.exit_code == 0
+    assert "History clear operation cancelled" in clean_rich_output(result.output)
+
+    # Verify history still exists
+    history = OperationHistory(history_file)
+    assert len(history.sessions) == 1
+
+
+def test_history_cmd_with_last_session_option(tmp_path):
+    """Test the history command with last_session=True option"""
+    # Create a history file with multiple sessions
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+
+    # Create two sessions
+    history.start_session(tmp_path / "source1", tmp_path / "dest1")
+    history.add_operation(
+        "move", tmp_path / "source1/file1.txt", tmp_path / "dest1/file1.txt"
+    )
+
+    session2 = history.start_session(tmp_path / "source2", tmp_path / "dest2")
+    history.add_operation(
+        "move", tmp_path / "source2/file2.txt", tmp_path / "dest2/file2.txt"
+    )
+
+    # Test last_session flag
+    result = runner.invoke(
+        app, ["history", "--history-file", str(history_file), "--last-session"]
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "Session Details" in clean_output
+
+    # Look for operation existence instead of exact filename
+    assert "Operations: 1" in clean_output
+    # Or check for session ID
+    assert f"Session {session2}" in clean_output or str(session2) in clean_output
+
+
+def test_history_cmd_with_last_session_empty(tmp_path):
+    """Test history command with last_session=True but no sessions exist"""
+    # Create an empty history file
+    history_file = tmp_path / "history.json"
+
+    # Test last_session flag with empty history
+    result = runner.invoke(
+        app, ["history", "--history-file", str(history_file), "--last-session"]
+    )
+    assert result.exit_code == 0
+    clean_output = clean_rich_output(result.output)
+    assert "No sessions in history" in clean_output
+
+
+def test_undo_cmd_with_missing_session_for_operation(tmp_path):
+    """Test undo command with operation number but no session provided"""
+    history_file = tmp_path / "history.json"
+
+    # Create a history file with a session
+    history = OperationHistory(history_file)
+    history.add_operation("move", tmp_path / "file1.txt", tmp_path / "dest/file1.txt")
+
+    # Try to undo an operation without specifying session
+    result = runner.invoke(
+        app, ["undo", "--history-file", str(history_file), "--number", "1"]
+    )
+
+    # Check for the error message
+    assert "requires specifying --session" in result.output or "Error" in result.output
+
+
+def test_undo_cmd_with_invalid_operation_type(tmp_path):
+    """Test undo command with an operation that has an invalid type"""
+    history_file = tmp_path / "history.json"
+    history = OperationHistory(history_file)
+    session_id = history.start_session(tmp_path, tmp_path)
+
+    # Manually add an operation with invalid type
+    invalid_op = {
+        "type": "invalid_type",
+        "source": str(tmp_path / "src.txt"),
+        "destination": str(tmp_path / "dest.txt"),
+        "timestamp": "2023-01-01T12:00:00",
+        "status": "completed",
+    }
+    history.current_session["operations"].append(invalid_op)
+    history._save_history()
+
+    # Try to undo the operation
+    result = runner.invoke(
+        app,
+        [
+            "undo",
+            "--history-file",
+            str(history_file),
+            "--session",
+            str(session_id),
+            "--number",
+            "1",
+        ],
+        input="y\n",
+    )
+
+    # Should indicate failure
+    assert "Failed to undo operation" in result.output
+
+
+def test_clear_log_confirmed(tmp_path, monkeypatch):
+    """Test clear_log flag with user confirmation."""
+    # Mock log folder and file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("Test log content")
+
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
+    )
+
+    # Mock confirm to return True (user confirms)
+    monkeypatch.setattr("typer.confirm", lambda x: True)
+
+    # Run with clear_log flag
+    result = runner.invoke(app, ["--clear-log"])
+
+    # Check that exit was clean
+    assert result.exit_code == 0
+
+    # Verify file was deleted
+    assert not log_file.exists()
+    assert "deleted" in result.output
+
+
+def test_clear_log_cancelled(tmp_path, monkeypatch):
+    """Test clear_log flag with user cancellation."""
+    # Mock log folder and file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("Test log content")
+
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
+    )
+
+    # Mock confirm to return False (user cancels)
+    monkeypatch.setattr("typer.confirm", lambda x: False)
+
+    # Run with clear_log flag
+    result = runner.invoke(app, ["--clear-log"])
+
+    # Check that exit was clean
+    assert result.exit_code == 0
+
+    # Verify file still exists
+    assert log_file.exists()
+    assert log_file.read_text() == "Test log content"
+    assert "cancelled" in result.output.lower()
+
+
+def test_clear_log_file_not_exists(tmp_path, monkeypatch):
+    """Test clear_log flag when log file doesn't exist."""
+    # Mock log folder but no file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    # Don't create the file
+
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
+    )
+
+    # Mock confirm to return True (user confirms)
+    monkeypatch.setattr("typer.confirm", lambda x: True)
+
+    # Run with clear_log flag
+    result = runner.invoke(app, ["--clear-log"])
+
+    # Should exit cleanly (missing_ok=True handles nonexistent files)
+    assert result.exit_code == 0
+    assert "deleted successfully" in result.output
+
+
+def test_clear_log_with_error(tmp_path, monkeypatch):
+    """Test clear_log flag when an error occurs during deletion."""
+    # Mock log folder and file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("Test log content")
+
+    # Patch DEFAULT_SETTINGS to use our test paths
+    monkeypatch.setattr(
+        "tidyfiles.cli.DEFAULT_SETTINGS",
+        {"log_folder_name": str(log_dir), "log_file_name": "app.log"},
+    )
+
+    # Mock confirm to return True (user confirms)
+    monkeypatch.setattr("typer.confirm", lambda x: True)
+
+    # Mock Path.unlink to raise an error
+    def mock_unlink(*args, **kwargs):
+        raise OSError("Test error")
+
+    with patch("pathlib.Path.unlink", mock_unlink):
+        # Run with clear_log flag
+        result = runner.invoke(app, ["--clear-log"])
+
+        # Should fail with error message
+        assert result.exit_code != 0
+        assert "Error deleting log file" in result.output
+
+
+def test_run_file_operations_empty_plans(tmp_path, monkeypatch):
+    """Test run_file_operations with empty transfer and delete plans."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Mock create_plans to return empty plans
+    monkeypatch.setattr("tidyfiles.cli.create_plans", lambda **kwargs: ([], []))
+
+    # Run the CLI command
+    with patch("rich.console.Console.print") as mock_print:
+        result = runner.invoke(app, ["--source-dir", str(source_dir)])
+        assert result.exit_code == 0
+        # Verify output messages for empty plans
+        assert any(
+            "No files found to transfer" in str(args)
+            for args, kwargs in mock_print.call_args_list
+        )
+
+
+def test_run_file_operations_with_transfer_only(tmp_path, monkeypatch):
+    """Test run_file_operations with only transfer plan."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    test_file = source_dir / "test.txt"
+    test_file.write_text("test content")
+
+    def mock_create_plans(**kwargs):
+        return [
+            {"source": test_file, "destination": tmp_path / "dest" / "test.txt"}
+        ], []
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+    monkeypatch.setattr("tidyfiles.cli.transfer_files", lambda *args, **kwargs: (1, 1))
+
+    with patch("rich.console.Console.print") as mock_print:
+        result = runner.invoke(app, ["--source-dir", str(source_dir)])
+        assert result.exit_code == 0
+        assert any(
+            "No directories found to clean" in str(args)
+            for args, kwargs in mock_print.call_args_list
+        )
+
+
+def test_run_file_operations_with_delete_only(tmp_path, monkeypatch):
+    """Test run_file_operations with only delete plan."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    empty_dir = source_dir / "empty_dir"
+    empty_dir.mkdir()
+
+    def mock_create_plans(**kwargs):
+        return [], [empty_dir]
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+    monkeypatch.setattr("tidyfiles.cli.delete_dirs", lambda *args, **kwargs: (1, 1))
+
+    with patch("rich.console.Console.print") as mock_print:
+        result = runner.invoke(app, ["--source-dir", str(source_dir)])
+        assert result.exit_code == 0
+        assert any(
+            "No files found to transfer" in str(args)
+            for args, kwargs in mock_print.call_args_list
+        )
+
+
+def test_run_file_operations_with_transfer_error(tmp_path, monkeypatch):
+    """Test run_file_operations when transfer_files raises an exception."""
+    # Setup test directory
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    test_file = source_dir / "test.txt"
+    test_file.write_text("test content")
+
+    # Mock create_plans to return a transfer plan
+    def mock_create_plans(**kwargs):
+        return [
+            {"source": test_file, "destination": tmp_path / "dest" / "test.txt"}
+        ], []
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+
+    # Mock transfer_files to raise an exception
+    def mock_transfer_files(*args, **kwargs):
+        raise Exception("Transfer error")
+
+    monkeypatch.setattr("tidyfiles.cli.transfer_files", mock_transfer_files)
+
+    # Run the command - it should fail but we don't check for specific error messages
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+
+    # Verify error handling - just check for non-zero exit code
+    assert result.exit_code != 0
+
+
+def test_run_file_operations_with_delete_error(tmp_path, monkeypatch):
+    """Test run_file_operations when delete_dirs raises an exception."""
+    # Setup test directory
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    empty_dir = source_dir / "empty_dir"
+    empty_dir.mkdir()
+
+    # Mock create_plans to return a delete plan
+    def mock_create_plans(**kwargs):
+        return [], [empty_dir]
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+
+    # Mock delete_dirs to raise an exception
+    def mock_delete_dirs(*args, **kwargs):
+        raise Exception("Delete error")
+
+    monkeypatch.setattr("tidyfiles.cli.delete_dirs", mock_delete_dirs)
+
+    # Run the command
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+
+    # Verify error handling
+    assert result.exit_code != 0
+
+
+def test_run_file_operations_complete_workflow(tmp_path, monkeypatch):
+    """Test run_file_operations with both transfer and delete plans."""
+    # Setup test directory
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    test_file = source_dir / "test.txt"
+    test_file.write_text("test content")
+    empty_dir = source_dir / "empty_dir"
+    empty_dir.mkdir()
+
+    # Mock create_plans to return both plans
+    def mock_create_plans(**kwargs):
+        return [{"source": test_file, "destination": tmp_path / "dest" / "test.txt"}], [
+            empty_dir
+        ]
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+
+    # Mock operations to avoid actual file system changes
+    monkeypatch.setattr("tidyfiles.cli.transfer_files", lambda *args, **kwargs: (1, 1))
+    monkeypatch.setattr("tidyfiles.cli.delete_dirs", lambda *args, **kwargs: (1, 1))
+
+    # Run the command
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+
+    # Verify successful execution
+    assert result.exit_code == 0
+
+
+def test_history_cmd_with_malformed_session_data(tmp_path):
+    """Test history command with malformed session data"""
+    history_file = tmp_path / "history.json"
+
+    # Create a history file with malformed session data
+    with open(history_file, "w") as f:
+        f.write(
+            '[{"id": 1, "start_time": "2023-01-01T12:00:00", "status": "completed", "operations": [{"type": "move", "timestamp": "invalid-timestamp", "source": "s", "destination": "d", "status": "completed"}]}]'
+        )
+
+    # View session details
+    result = runner.invoke(
+        app, ["history", "--history-file", str(history_file), "--session", "1"]
+    )
+
+    # Should handle gracefully
+    assert result.exit_code == 0
+    # Some form of output should be present (not crashing)
+    assert "Session" in clean_rich_output(result.output)
+
+
+def test_history_cmd_with_auto_recovery(tmp_path):
+    """Test history command auto-recovering in_progress sessions"""
+    history_file = tmp_path / "history.json"
+
+    # Create a history file with an in_progress session that has all completed operations
+    session_data = [
+        {
+            "id": 1,
+            "start_time": "2023-01-01T12:00:00",
+            "status": "in_progress",  # Should be auto-recovered
+            "source_dir": str(tmp_path),
+            "destination_dir": str(tmp_path),
+            "operations": [
+                {
+                    "type": "move",
+                    "source": str(tmp_path / "file.txt"),
+                    "destination": str(tmp_path / "dest/file.txt"),
+                    "timestamp": "2023-01-01T12:00:00",
+                    "status": "completed",  # All operations are completed
+                }
+            ],
+        }
+    ]
+
+    with open(history_file, "w") as f:
+        json.dump(session_data, f)
+
+    # Run the history command to trigger auto-recovery
+    result = runner.invoke(app, ["history", "--history-file", str(history_file)])
+    assert result.exit_code == 0
+
+    # Now verify the status was changed
+    with open(history_file, "r") as f:
+        loaded_data = json.load(f)
+        assert loaded_data[0]["status"] == "completed"
+
+
+def test_file_operations_with_errors(tmp_path, monkeypatch):
+    """Test handling of errors during file operations."""
+    # Setup test directory
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    test_file = source_dir / "test.txt"
+    test_file.write_text("test content")
+
+    # Create a mock transfer plan
+    transfer_plan = [
+        {"source": test_file, "destination": tmp_path / "dest" / "test.txt"}
+    ]
+
+    # Mock create_plans to return our test plan
+    monkeypatch.setattr(
+        "tidyfiles.cli.create_plans", lambda **kwargs: (transfer_plan, [])
+    )
+
+    # Mock transfer_files to simulate errors
+    def mock_transfer_files(*args, **kwargs):
+        # Simulate an exception during transfer
+        raise OSError("Mock transfer error")
+
+    monkeypatch.setattr("tidyfiles.cli.transfer_files", mock_transfer_files)
+
+    # Run with error handling
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+
+    # Check for non-zero exit code, which indicates an error
+    assert result.exit_code != 0

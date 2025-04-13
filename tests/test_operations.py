@@ -303,9 +303,10 @@ def test_get_folder_path(tmp_path):
     assert get_folder_path(test_file, {}, unrecognized) == unrecognized
 
     # Test with matching extension
+    # Convert Path objects to strings to match the expected Dict[str, Any] type
     cleaning_plan = {
-        docs_folder: [".txt"],
-        images_folder: [".jpg", ".png"],
+        str(docs_folder): [".txt"],
+        str(images_folder): [".jpg", ".png"],
     }
     assert get_folder_path(test_file, cleaning_plan, unrecognized) == docs_folder
 
@@ -478,3 +479,159 @@ def test_delete_dirs_with_history_dry_run(tmp_path, test_logger):
 
     # Check that no history was recorded in dry-run mode
     assert len(history.operations) == 0
+
+
+def test_transfer_files_with_non_existent_source(tmp_path, test_logger):
+    """Test transfer_files with a source file that doesn't exist."""
+    source_file = tmp_path / "nonexistent.txt"
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir()
+
+    transfer_plan = [(source_file, dest_dir / "nonexistent.txt")]
+    num_transferred, total = transfer_files(transfer_plan, test_logger, dry_run=False)
+
+    assert num_transferred == 0
+    assert total == 1
+    assert not (dest_dir / "nonexistent.txt").exists()
+
+
+def test_transfer_files_with_non_existent_dest_parent(tmp_path, test_logger):
+    """Test transfer_files with a destination parent directory that doesn't exist."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("test content")
+    dest_dir = tmp_path / "nonexistent_dir"
+
+    transfer_plan = [(source_file, dest_dir / "source.txt")]
+    num_transferred, total = transfer_files(transfer_plan, test_logger, dry_run=False)
+
+    assert num_transferred == 1
+    assert total == 1
+    assert (dest_dir / "source.txt").exists()
+    assert (dest_dir / "source.txt").read_text() == "test content"
+
+
+def test_transfer_files_with_permission_error(tmp_path, test_logger, monkeypatch):
+    """Test transfer_files with permission error during transfer."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("test content")
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir()
+
+    def mock_replace(*args, **kwargs):
+        raise PermissionError("Mock permission error")
+
+    monkeypatch.setattr(Path, "replace", mock_replace)
+
+    transfer_plan = [(source_file, dest_dir / "source.txt")]
+    num_transferred, total = transfer_files(transfer_plan, test_logger, dry_run=False)
+
+    assert num_transferred == 0
+    assert total == 1
+    assert not (dest_dir / "source.txt").exists()
+
+
+def test_delete_dirs_with_non_empty_directory(tmp_path, test_logger):
+    """Test delete_dirs with a non-empty directory."""
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+    (test_dir / "file.txt").touch()
+
+    delete_plan = [test_dir]
+    num_deleted, total = delete_dirs(delete_plan, test_logger, dry_run=False)
+
+    assert num_deleted == 1  # Should still be counted as deleted
+    assert total == 1
+    assert not test_dir.exists()  # Directory should be deleted with its contents
+
+
+def test_delete_dirs_with_permission_error(tmp_path, test_logger, monkeypatch):
+    """Test delete_dirs with permission error during deletion."""
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+
+    def mock_rmtree(*args, **kwargs):
+        raise PermissionError("Mock permission error")
+
+    monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
+
+    delete_plan = [test_dir]
+    num_deleted, total = delete_dirs(delete_plan, test_logger, dry_run=False)
+
+    assert num_deleted == 0
+    assert total == 1
+    assert test_dir.exists()
+
+
+def test_create_plans_with_circular_symlink(tmp_path):
+    """Test create_plans with a circular symlink."""
+    # Create test structure
+    test_dir = tmp_path / "test"
+    test_dir.mkdir()
+
+    # Create a circular symlink
+    symlink = test_dir / "circular"
+    symlink.symlink_to(test_dir)
+
+    settings = {
+        "source_dir": tmp_path,
+        "destination_dir": tmp_path,
+        "cleaning_plan": {tmp_path / "documents": [".txt"]},
+        "unrecognized_file": tmp_path / "other",
+    }
+
+    transfer_plan, delete_plan = create_plans(**settings)
+
+    # Verify directory is in delete plan
+    assert test_dir in delete_plan
+    # Verify no files in transfer plan (no regular files)
+    assert not any(str(test_dir) in str(src) for src, _ in transfer_plan)
+
+
+def test_transfer_files_with_history_error(tmp_path, test_logger, monkeypatch):
+    """Test transfer_files with error in history recording."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("test content")
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir()
+
+    history = OperationHistory(tmp_path / "history.json")
+
+    # Mock add_operation to raise an exception
+    def mock_add_operation(*args, **kwargs):
+        raise Exception("Mock history error")
+
+    monkeypatch.setattr(OperationHistory, "add_operation", mock_add_operation)
+
+    transfer_plan = [(source_file, dest_dir / "source.txt")]
+    num_transferred, total = transfer_files(
+        transfer_plan, test_logger, dry_run=False, history=history
+    )
+
+    # Operation should still succeed even if history recording fails
+    assert num_transferred == 1
+    assert total == 1
+    assert (dest_dir / "source.txt").exists()
+
+
+def test_delete_dirs_with_history_error(tmp_path, test_logger, monkeypatch):
+    """Test delete_dirs with error in history recording."""
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+
+    history = OperationHistory(tmp_path / "history.json")
+
+    # Mock add_operation to raise an exception
+    def mock_add_operation(*args, **kwargs):
+        raise Exception("Mock history error")
+
+    monkeypatch.setattr(OperationHistory, "add_operation", mock_add_operation)
+
+    delete_plan = [test_dir]
+    num_deleted, total = delete_dirs(
+        delete_plan, test_logger, dry_run=False, history=history
+    )
+
+    # Operation should still succeed even if history recording fails
+    assert num_deleted == 1
+    assert total == 1
+    assert not test_dir.exists()
