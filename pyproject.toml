@@ -1,6 +1,6 @@
 [project]
 name = "tidyfiles"
-version = "0.9.0"
+version = "0.10.0"
 description = "TidyFiles is a user-friendly, lightweight CLI tool designed to bring order to your Downloads (or any other) folder! It intelligently organizes files by type and keep logs of all the sorting magic."
 readme = "README.md"
 requires-python = ">=3.10"

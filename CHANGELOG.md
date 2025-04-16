@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.10.0 (2025-04-16)
+
+### Features
+
+- Enhance file transfer and directory deletion logic with detailed statistics and improved logging
+  ([`2871cb5`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/2871cb52987b9f9cb81f1a6b7f1b5d2844d30588))
+
+### Testing
+
+- Add comprehensive tests for file transfer and directory deletion with symlink handling and
+  progress bar updates
+  ([`ab4ebe3`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/ab4ebe313dbd19198844bfec7e91630886bd86eb))
+
+- Enhance CLI tests to include detailed statistics and improve output validation
+  ([`8b1d7a1`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/8b1d7a1da9cf7007ad9cc42170eb152eb53edf4d))
+
+
 ## v0.9.0 (2025-04-13)
 
 ### Documentation
