@@ -745,13 +745,24 @@ def main(
             logger.info(f"--- Session {session_id} started ---")
 
         # Create plans for file transfer and directory deletion
-        transfer_plan, delete_plan = create_plans(**settings)
-
-        logger.info(
-            f"Plan created: {len(transfer_plan)} files to transfer, {len(delete_plan)} directories potentially to delete."
+        transfer_plan, delete_plan, stats = create_plans(
+            source_dir=settings["source_dir"],
+            cleaning_plan=settings["cleaning_plan"],
+            unrecognized_file=settings["unrecognized_file"],
+            logger=logger,
+            excludes=settings.get("excludes", set()),
         )
-        console.print(f"Found {len(transfer_plan)} files to potentially transfer.")
-        console.print(f"Found {len(delete_plan)} directories to potentially delete.")
+
+        # Print statistics
+        console.print(
+            f"Found {stats['files_to_transfer']} files to potentially transfer."
+        )
+        console.print(
+            f"Found {stats['dirs_to_delete']} directories to potentially delete."
+        )
+        console.print(
+            f"[dim]Total scanned: {stats['total_files']} files, {stats['total_dirs']} directories[/dim]"
+        )
 
         # Define Progress Bar Columns (Nala-style)
         progress_columns = [

@@ -1,4 +1,4 @@
-import shutil
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any, Protocol
@@ -88,8 +88,9 @@ def create_plans(
     source_dir: Path,
     cleaning_plan: Dict[str, Any],
     unrecognized_file: Path,
+    logger: Optional[loguru.logger] = None,
     **kwargs,
-) -> Tuple[List[Tuple[Path, Path]], List[Path]]:
+) -> Tuple[List[Tuple[Path, Path]], List[Path], Dict[str, int]]:
     """Generate plans for file transfers and directory deletions.
 
     Scans the source directory, creating a plan to move files based on the
@@ -100,16 +101,26 @@ def create_plans(
         source_dir (Path): The directory to scan.
         cleaning_plan (Dict[str, Any]): Configuration mapping file extensions to destination folders.
         unrecognized_file (Path): The base path for files with unrecognized extensions.
+        logger (Optional[loguru.logger]): Logger instance for logging operations.
         **kwargs: Optional arguments. Supports 'excludes' (Set[Path]): Paths to ignore.
 
     Returns:
-        Tuple[List[Tuple[Path, Path]], List[Path]]: A tuple containing the
-            transfer plan (list of source/destination pairs) and the delete
-            plan (list of directories).
+        Tuple[List[Tuple[Path, Path]], List[Path], Dict[str, int]]: A tuple containing:
+            - transfer plan (list of source/destination pairs)
+            - delete plan (list of directories)
+            - statistics dictionary with total counts
     """
     transfer_plan = []
     delete_plan = []
     excludes = kwargs.get("excludes", set()) or set()
+
+    # Get all target directories from cleaning plan
+    target_dirs = {Path(dir) for dir in cleaning_plan.keys()}
+    target_dirs.add(unrecognized_file)
+
+    # Track total counts
+    total_files = 0
+    total_dirs = 0
 
     for filesystem_object in source_dir.rglob("*"):
         # Skip if the object is in excludes
@@ -117,16 +128,38 @@ def create_plans(
             continue
 
         if filesystem_object.is_dir():
-            delete_plan.append(filesystem_object)
-        elif filesystem_object.is_file() and not filesystem_object.is_symlink():
+            total_dirs += 1
+            # Only add to delete plan if not in target directories
+            if not any(
+                filesystem_object.is_relative_to(target) for target in target_dirs
+            ):
+                delete_plan.append(filesystem_object)
+        elif filesystem_object.is_file():
+            total_files += 1
             destination_folder = get_folder_path(
                 filesystem_object, cleaning_plan, unrecognized_file
             )
-            transfer_plan.append(
-                (filesystem_object, destination_folder / filesystem_object.name)
-            )
+            destination = destination_folder / filesystem_object.name
 
-    return transfer_plan, delete_plan
+            # Only add to transfer plan if the file will actually move
+            if destination.parent != filesystem_object.parent:
+                transfer_plan.append((filesystem_object, destination))
+
+    # Log the overall statistics if logger is provided
+    if logger:
+        logger.info(
+            f"Found {total_files} total files ({len(transfer_plan)} to transfer) and "
+            f"{total_dirs} total directories ({len(delete_plan)} to delete)"
+        )
+
+    stats = {
+        "total_files": total_files,
+        "total_dirs": total_dirs,
+        "files_to_transfer": len(transfer_plan),
+        "dirs_to_delete": len(delete_plan),
+    }
+
+    return transfer_plan, delete_plan, stats
 
 
 def transfer_files(
@@ -170,9 +203,11 @@ def transfer_files(
             )
             copy_number += 1
 
-        # Update progress bar if available
         if progress and task_id is not None:
             progress.update(task_id, advance=0, description=f"Moving: {source.name}")
+
+        if history and not dry_run:
+            history.add_operation("move", source, destination, datetime.now())
 
         if dry_run:
             msg = f"MOVE_FILE [DRY-RUN] | FROM: {source} | TO: {destination}"
@@ -181,13 +216,26 @@ def transfer_files(
         else:
             try:
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                source.replace(destination)
+                if source.is_symlink():
+                    # Get the target before moving
+                    target = source.readlink()
+                    # If it's a relative path, adjust it relative to the new location
+                    if not target.is_absolute():
+                        target = Path(
+                            os.path.relpath(source.parent / target, destination.parent)
+                        )
+                    # Remove existing symlink if any
+                    destination.unlink(missing_ok=True)
+                    # Create new symlink
+                    destination.symlink_to(target)
+                    source.unlink()
+                else:
+                    source.replace(destination)
+
                 msg = f"MOVE_FILE [SUCCESS] | FROM: {source} | TO: {destination}"
                 operations.append(f"[green]{msg}[/green]")
                 logger.info(msg)
                 num_transferred_files += 1
-                if history:
-                    history.add_operation("move", source, destination, datetime.now())
             except Exception as e:
                 error_msg = (
                     f"MOVE_FILE [FAILED] | FROM: {source} | "
@@ -196,12 +244,11 @@ def transfer_files(
                 operations.append(f"[red]{error_msg}[/red]")
                 logger.error(error_msg)
 
-        # Advance progress bar after processing each file
         if progress and task_id is not None:
             progress.update(task_id, advance=1)
 
-    # Only show the panel if progress bar is not used
-    if not progress:
+    # Only show summary if actual changes were made
+    if operations and not progress:
         summary = (
             f"Total files processed: {len(transfer_plan)}\n"
             f"Successfully moved: [green]{num_transferred_files}[/green]\n"
@@ -217,13 +264,13 @@ def transfer_files(
             ]
         )
         console.print(Panel(panel_content))
+        logger.info(
+            "=== File Transfer Summary ===\n"
+            f"Total files processed: {len(transfer_plan)}\n"
+            f"Successfully moved: {num_transferred_files}\n"
+            f"Failed: {len(transfer_plan) - num_transferred_files}"
+        )
 
-    logger.info(
-        "=== File Transfer Summary ===\n"
-        f"Total files processed: {len(transfer_plan)}\n"
-        f"Successfully moved: {num_transferred_files}\n"
-        f"Failed: {len(transfer_plan) - num_transferred_files}"
-    )
     return num_transferred_files, len(transfer_plan)
 
 
@@ -237,6 +284,7 @@ def delete_dirs(
 ) -> Tuple[int, int]:
     """
     Delete empty directories after moving files.
+    Only logs actual deletions while maintaining full history for undo operations.
 
     Args:
         delete_plan (List[Path]): A list of directories to delete.
@@ -251,65 +299,63 @@ def delete_dirs(
         Tuple[int, int]: A tuple containing the number of directories deleted and
             the total number of directories in the delete plan.
     """
-    deleted_paths = set()
     num_deleted_directories = 0
     operations = []
 
-    for i, directory in enumerate(delete_plan):
-        # Update progress bar if available
+    # Sort directories by depth (deepest first) to handle nested directories properly
+    sorted_delete_plan = sorted(delete_plan, key=lambda x: len(x.parts), reverse=True)
+
+    for directory in sorted_delete_plan:
         if progress and task_id is not None:
             progress.update(
                 task_id, advance=0, description=f"Cleaning: {directory.name}"
             )
 
-        if any(directory.is_relative_to(deleted) for deleted in deleted_paths):
-            skip_msg = (
-                "DELETE_DIR [SKIPPED] | "
-                f"PATH: {directory} | "
-                "REASON: Already deleted with parent directory"
-            )
-            operations.append(f"[yellow]{skip_msg}[/yellow]")
-            logger.info(skip_msg)
-            num_deleted_directories += 1
-
-            # Advance progress bar for skipped directories
-            if progress and task_id is not None:
-                progress.update(task_id, advance=1)
-            continue
-
+        # Only log actual filesystem changes
         if dry_run:
-            msg = f"DELETE_DIR [DRY-RUN] | PATH: {directory}"
-            operations.append(f"[yellow]{msg}[/yellow]")
-            logger.info(msg)
+            if directory.exists() and not any(directory.iterdir()):
+                msg = f"DELETE_DIR [DRY-RUN] | PATH: {directory}"
+                operations.append(f"[yellow]{msg}[/yellow]")
+                logger.info(msg)
         else:
             try:
-                if directory.exists():
-                    shutil.rmtree(directory)
-                    deleted_paths.add(directory)
+                if directory.exists() and not any(directory.iterdir()):
+                    # Try to delete the directory first
+                    directory.rmdir()
+
+                    # Only record in history after successful deletion
+                    if history:
+                        try:
+                            history.add_operation(
+                                "delete", directory, directory, datetime.now()
+                            )
+                        except Exception as e:
+                            # If history recording fails, try to restore the directory
+                            try:
+                                directory.mkdir()
+                            except Exception:
+                                pass  # If restoration fails, we can't do much about it
+                            error_msg = f"DELETE_DIR [FAILED] | PATH: {directory} | ERROR: {str(e)}"
+                            operations.append(f"[red]{error_msg}[/red]")
+                            logger.error(error_msg)
+                            continue
+
                     msg = f"DELETE_DIR [SUCCESS] | PATH: {directory}"
                     operations.append(f"[green]{msg}[/green]")
                     logger.info(msg)
                     num_deleted_directories += 1
-                    if history:
-                        history.add_operation(
-                            "delete", directory, directory, datetime.now()
-                        )
+
             except Exception as e:
                 error_msg = f"DELETE_DIR [FAILED] | PATH: {directory} | ERROR: {str(e)}"
                 operations.append(f"[red]{error_msg}[/red]")
                 logger.error(error_msg)
 
-        # Advance progress bar after processing each directory
         if progress and task_id is not None:
             progress.update(task_id, advance=1)
 
-    # Only show the panel if progress bar is not used
-    if not progress:
-        summary = (
-            f"Total directories processed: {len(delete_plan)}\n"
-            f"Successfully deleted: [green]{num_deleted_directories}[/green]\n"
-            f"Failed: [red]{len(delete_plan) - num_deleted_directories}[/red]"
-        )
+    # Only show summary if actual changes were made
+    if operations and not progress:
+        summary = f"Successfully deleted: [green]{num_deleted_directories}[/green] directories"
 
         panel_content = "\n".join(
             [
@@ -320,11 +366,9 @@ def delete_dirs(
             ]
         )
         console.print(Panel(panel_content))
+        logger.info(
+            "=== Directory Cleanup Summary ===\n"
+            f"Successfully deleted: {num_deleted_directories} directories"
+        )
 
-    logger.info(
-        "=== Directory Cleanup Summary ===\n"
-        f"Total directories processed: {len(delete_plan)}\n"
-        f"Successfully deleted: {num_deleted_directories}\n"
-        f"Failed: {len(delete_plan) - num_deleted_directories}"
-    )
     return num_deleted_directories, len(delete_plan)
