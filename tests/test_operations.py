@@ -659,3 +659,154 @@ def test_create_plans_without_logger(tmp_path):
     assert stats["total_dirs"] == 0
     assert isinstance(transfer_plan, list)
     assert isinstance(delete_plan, list)
+
+
+def test_find_category_with_nested_extensions():
+    """Test get_folder_path with nested categories containing 'extensions' key."""
+    cleaning_plan = {
+        "documents": {
+            "text": {"extensions": [".txt", ".md"]},
+            "pdf": {"extensions": [".pdf"]},
+        }
+    }
+    file = Path("test.txt")
+    unrecognized = Path("other")
+
+    result = get_folder_path(file, cleaning_plan, unrecognized)
+    assert result == Path("documents/text")
+
+
+def test_transfer_files_with_relative_symlink(tmp_path):
+    """Test transfer_files with relative symlinks."""
+    # Create source structure
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    target_file = source_dir / "target.txt"
+    target_file.write_text("content")
+    symlink = source_dir / "link.txt"
+    symlink.symlink_to(target_file.name)  # Relative symlink
+
+    # Create destination directory
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir()
+
+    # Setup transfer plan
+    transfer_plan = [(symlink, dest_dir / "link.txt")]
+    logger = MagicMock()
+
+    # Execute transfer
+    num_transferred, total = transfer_files(transfer_plan, logger, dry_run=False)
+
+    assert num_transferred == 1
+    assert total == 1
+    assert not symlink.exists()  # Original symlink should be removed
+    assert (dest_dir / "link.txt").is_symlink()
+    assert (dest_dir / "link.txt").readlink().name == "target.txt"
+
+
+def test_transfer_files_with_progress_bar(tmp_path):
+    """Test transfer_files with progress bar updates."""
+    # Create test files
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("test")
+    dest_file = tmp_path / "dest" / "source.txt"
+
+    # Mock progress bar
+    progress = MagicMock()
+    task_id = 1
+
+    transfer_plan = [(source_file, dest_file)]
+    logger = MagicMock()
+
+    num_transferred, total = transfer_files(
+        transfer_plan, logger, dry_run=False, progress=progress, task_id=task_id
+    )
+
+    assert num_transferred == 1
+    assert total == 1
+    # Verify progress bar updates
+    progress.update.assert_called_with(task_id, advance=1)
+
+
+def test_delete_dirs_with_progress_bar(tmp_path):
+    """Test delete_dirs with progress bar updates."""
+    # Create test directory
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+
+    # Mock progress bar
+    progress = MagicMock()
+    task_id = 1
+
+    delete_plan = [test_dir]
+    logger = MagicMock()
+
+    num_deleted, total = delete_dirs(
+        delete_plan, logger, dry_run=False, progress=progress, task_id=task_id
+    )
+
+    assert num_deleted == 1
+    assert total == 1
+    # Verify progress bar updates
+    progress.update.assert_called()
+    assert not test_dir.exists()
+
+
+def test_get_folder_path_with_invalid_cleaning_plan():
+    """Test get_folder_path with invalid cleaning plan structure."""
+    cleaning_plan = {
+        "documents": None,  # Invalid structure
+        "images": {"extensions": [".jpg"]},
+    }
+    file = Path("test.jpg")
+    unrecognized = Path("other")
+
+    result = get_folder_path(file, cleaning_plan, unrecognized)
+    assert result == Path("images")  # Should handle invalid structure gracefully
+
+
+def test_get_folder_path_with_empty_category():
+    """Test get_folder_path with empty category."""
+    cleaning_plan = {
+        "documents": {"extensions": []},  # Empty extensions list
+        "images": {"extensions": [".jpg"]},
+    }
+    file = Path("test.doc")
+    unrecognized = Path("other")
+
+    result = get_folder_path(file, cleaning_plan, unrecognized)
+    assert result == unrecognized  # Should return unrecognized path
+
+
+def test_transfer_files_with_complex_symlink(tmp_path):
+    """Test transfer_files with complex symlink scenarios."""
+    # Create nested directory structure
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    nested_dir = source_dir / "nested"
+    nested_dir.mkdir()
+
+    # Create target file and symlink in different directories
+    target_file = source_dir / "target.txt"
+    target_file.write_text("content")
+    symlink = nested_dir / "link.txt"
+    symlink.symlink_to(Path("..") / "target.txt")
+
+    # Create destination directory
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir()
+
+    # Setup transfer plan
+    transfer_plan = [(symlink, dest_dir / "link.txt")]
+    logger = MagicMock()
+
+    # Execute transfer
+    num_transferred, total = transfer_files(
+        transfer_plan, logger, dry_run=False, progress=MagicMock(), task_id=1
+    )
+
+    assert num_transferred == 1
+    assert total == 1
+    assert (dest_dir / "link.txt").is_symlink()
+    # Verify symlink points to correct relative path
+    assert (dest_dir / "link.txt").readlink().name == "target.txt"
