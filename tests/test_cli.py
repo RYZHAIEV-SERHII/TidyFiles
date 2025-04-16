@@ -934,8 +934,20 @@ def test_run_file_operations_empty_plans(tmp_path, monkeypatch):
     source_dir = tmp_path / "source"
     source_dir.mkdir()
 
-    # Mock create_plans to return empty plans
-    monkeypatch.setattr("tidyfiles.cli.create_plans", lambda **kwargs: ([], []))
+    # Mock create_plans to return empty plans and stats
+    monkeypatch.setattr(
+        "tidyfiles.cli.create_plans",
+        lambda **kwargs: (
+            [],
+            [],
+            {
+                "total_files": 0,
+                "total_dirs": 0,
+                "files_to_transfer": 0,
+                "dirs_to_delete": 0,
+            },
+        ),
+    )
 
     # Run the CLI command
     with patch("rich.console.Console.print") as mock_print:
@@ -956,20 +968,24 @@ def test_run_file_operations_with_transfer_only(tmp_path, monkeypatch):
     test_file.write_text("test content")
 
     def mock_create_plans(**kwargs):
-        return [
-            {"source": test_file, "destination": tmp_path / "dest" / "test.txt"}
-        ], []
+        return (
+            [{"source": test_file, "destination": tmp_path / "dest" / "test.txt"}],
+            [],
+            {
+                "total_files": 1,
+                "total_dirs": 0,
+                "files_to_transfer": 1,
+                "dirs_to_delete": 0,
+            },
+        )
 
     monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
     monkeypatch.setattr("tidyfiles.cli.transfer_files", lambda *args, **kwargs: (1, 1))
+    monkeypatch.setattr("tidyfiles.cli.delete_dirs", lambda *args, **kwargs: (0, 0))
 
-    with patch("rich.console.Console.print") as mock_print:
-        result = runner.invoke(app, ["--source-dir", str(source_dir)])
-        assert result.exit_code == 0
-        assert any(
-            "No directories found to clean" in str(args)
-            for args, kwargs in mock_print.call_args_list
-        )
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+    assert result.exit_code == 0
+    assert "No directories found to clean" in result.output
 
 
 def test_run_file_operations_with_delete_only(tmp_path, monkeypatch):
@@ -980,18 +996,24 @@ def test_run_file_operations_with_delete_only(tmp_path, monkeypatch):
     empty_dir.mkdir()
 
     def mock_create_plans(**kwargs):
-        return [], [empty_dir]
+        return (
+            [],
+            [empty_dir],
+            {
+                "total_files": 0,
+                "total_dirs": 1,
+                "files_to_transfer": 0,
+                "dirs_to_delete": 1,
+            },
+        )
 
     monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+    monkeypatch.setattr("tidyfiles.cli.transfer_files", lambda *args, **kwargs: (0, 0))
     monkeypatch.setattr("tidyfiles.cli.delete_dirs", lambda *args, **kwargs: (1, 1))
 
-    with patch("rich.console.Console.print") as mock_print:
-        result = runner.invoke(app, ["--source-dir", str(source_dir)])
-        assert result.exit_code == 0
-        assert any(
-            "No files found to transfer" in str(args)
-            for args, kwargs in mock_print.call_args_list
-        )
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+    assert result.exit_code == 0
+    assert "No files found to transfer" in result.output
 
 
 def test_run_file_operations_with_transfer_error(tmp_path, monkeypatch):
@@ -1052,7 +1074,6 @@ def test_run_file_operations_with_delete_error(tmp_path, monkeypatch):
 
 def test_run_file_operations_complete_workflow(tmp_path, monkeypatch):
     """Test run_file_operations with both transfer and delete plans."""
-    # Setup test directory
     source_dir = tmp_path / "source"
     source_dir.mkdir()
     test_file = source_dir / "test.txt"
@@ -1060,22 +1081,23 @@ def test_run_file_operations_complete_workflow(tmp_path, monkeypatch):
     empty_dir = source_dir / "empty_dir"
     empty_dir.mkdir()
 
-    # Mock create_plans to return both plans
     def mock_create_plans(**kwargs):
-        return [{"source": test_file, "destination": tmp_path / "dest" / "test.txt"}], [
-            empty_dir
-        ]
+        return (
+            [{"source": test_file, "destination": tmp_path / "dest" / "test.txt"}],
+            [empty_dir],
+            {
+                "total_files": 1,
+                "total_dirs": 1,
+                "files_to_transfer": 1,
+                "dirs_to_delete": 1,
+            },
+        )
 
     monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
-
-    # Mock operations to avoid actual file system changes
     monkeypatch.setattr("tidyfiles.cli.transfer_files", lambda *args, **kwargs: (1, 1))
     monkeypatch.setattr("tidyfiles.cli.delete_dirs", lambda *args, **kwargs: (1, 1))
 
-    # Run the command
     result = runner.invoke(app, ["--source-dir", str(source_dir)])
-
-    # Verify successful execution
     assert result.exit_code == 0
 
 
@@ -1188,3 +1210,65 @@ def test_clear_log_with_error(tmp_path, monkeypatch):
         # Should fail with error message
         assert result.exit_code != 0
         assert "Error deleting log file" in result.output
+
+
+def test_cli_displays_statistics(tmp_path, monkeypatch):
+    """Test that CLI properly displays statistics from create_plans"""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Create test files
+    (source_dir / "test.txt").touch()
+    (source_dir / "test.pdf").touch()
+    (source_dir / "empty_dir").mkdir()
+
+    # Mock statistics that would come from create_plans
+    mock_stats = {
+        "total_files": 2,
+        "total_dirs": 1,
+        "files_to_transfer": 2,
+        "dirs_to_delete": 1,
+    }
+
+    def mock_create_plans(*args, **kwargs):
+        return [], [], mock_stats
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+
+    # Run the command
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+
+    # Verify output contains statistics
+    assert "Found 2 files to potentially transfer." in result.output
+    assert "Found 1 directories to potentially delete." in result.output
+    assert "Total scanned: 2 files, 1 directories" in result.output
+    assert result.exit_code == 0
+
+
+def test_cli_displays_no_files_message(tmp_path, monkeypatch):
+    """Test that CLI shows appropriate message when no files to transfer"""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+
+    # Mock statistics with no files to transfer
+    mock_stats = {
+        "total_files": 0,
+        "total_dirs": 0,
+        "files_to_transfer": 0,
+        "dirs_to_delete": 0,
+    }
+
+    def mock_create_plans(*args, **kwargs):
+        return [], [], mock_stats
+
+    monkeypatch.setattr("tidyfiles.cli.create_plans", mock_create_plans)
+
+    # Run the command
+    result = runner.invoke(app, ["--source-dir", str(source_dir)])
+
+    # Verify output
+    assert "Found 0 files to potentially transfer." in result.output
+    assert "Found 0 directories to potentially delete." in result.output
+    assert "Total scanned: 0 files, 0 directories" in result.output
+    assert "No files found to transfer." in result.output
+    assert result.exit_code == 0
