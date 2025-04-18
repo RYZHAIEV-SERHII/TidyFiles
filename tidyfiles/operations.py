@@ -8,6 +8,7 @@ from rich.panel import Panel
 import loguru
 
 from .history import OperationHistory
+from .security import SystemSecurity
 
 
 class ProgressBarProtocol(Protocol):
@@ -110,6 +111,16 @@ def create_plans(
             - delete plan (list of directories)
             - statistics dictionary with total counts
     """
+    # Validate source directory
+    SystemSecurity.validate_path(source_dir)
+
+    # Validate all target directories in cleaning plan
+    for target_dir in cleaning_plan.keys():
+        SystemSecurity.validate_path(Path(target_dir))
+
+    # Validate unrecognized file directory
+    SystemSecurity.validate_path(unrecognized_file)
+
     transfer_plan = []
     delete_plan = []
     excludes = kwargs.get("excludes", set()) or set()
@@ -192,6 +203,11 @@ def transfer_files(
         Tuple[int, int]: A tuple containing the number of files transferred and
             the total number of files in the transfer plan.
     """
+    # Validate all paths in transfer plan
+    for source, destination in transfer_plan:
+        SystemSecurity.validate_path(source)
+        SystemSecurity.validate_path(destination.parent)
+
     num_transferred_files = 0
     operations = []
 
@@ -299,6 +315,10 @@ def delete_dirs(
         Tuple[int, int]: A tuple containing the number of directories deleted and
             the total number of directories in the delete plan.
     """
+    # Validate all paths in delete plan
+    for directory in delete_plan:
+        SystemSecurity.validate_path(directory)
+
     num_deleted_directories = 0
     operations = []
 
