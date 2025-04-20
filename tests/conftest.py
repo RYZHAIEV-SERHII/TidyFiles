@@ -79,10 +79,18 @@ def mock_settings_context(temp_dir):
     settings_path = temp_dir / ".tidyfiles" / "settings.toml"
     with patch("tidyfiles.config.DEFAULT_SETTINGS_PATH", settings_path):
         yield settings_path
-    if settings_path.exists():
-        settings_path.unlink()
-    if settings_path.parent.exists():
-        settings_path.parent.rmdir()
+    try:
+        if settings_path.exists():
+            settings_path.unlink()
+        if settings_path.parent.exists():
+            try:
+                settings_path.parent.rmdir()
+            except OSError:
+                # Directory might not be empty or might have other issues
+                pass
+    except FileNotFoundError:
+        # Files or directories might not exist
+        pass
 
 
 @pytest.fixture(autouse=True)
