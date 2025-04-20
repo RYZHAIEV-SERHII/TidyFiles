@@ -70,4 +70,4 @@ def get_logger(
                 mode=log_file_mode,
             )
 
-        return logger
+    return logger

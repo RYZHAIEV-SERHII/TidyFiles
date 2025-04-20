@@ -591,6 +591,12 @@ def main(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Run in dry-run mode (no actual changes)"
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Allow operations in system directories (use with caution)",
+    ),
     unrecognized_file_name: str = typer.Option(
         DEFAULT_SETTINGS["unrecognized_file_name"],
         "--unrecognized-dir",
@@ -745,13 +751,24 @@ def main(
             logger.info(f"--- Session {session_id} started ---")
 
         # Create plans for file transfer and directory deletion
-        transfer_plan, delete_plan, stats = create_plans(
-            source_dir=settings["source_dir"],
-            cleaning_plan=settings["cleaning_plan"],
-            unrecognized_file=settings["unrecognized_file"],
-            logger=logger,
-            excludes=settings.get("excludes", set()),
-        )
+        try:
+            transfer_plan, delete_plan, stats = create_plans(
+                source_dir=settings["source_dir"],
+                cleaning_plan=settings["cleaning_plan"],
+                unrecognized_file=settings["unrecognized_file"],
+                logger=logger,
+                excludes=settings.get("excludes", set()),
+                strict_validation=not force,  # Only disable strict validation if force flag is used
+            )
+        except ValueError as e:
+            console.print(f"\n[bold red]Error:[/bold red] {str(e)}")
+            raise typer.Exit(1)
+        except Exception as e:
+            console.print(
+                f"\n[bold red]An unexpected error occurred:[/bold red] {str(e)}"
+            )
+            logger.exception("Unexpected error")
+            raise typer.Exit(1)
 
         # Print statistics
         console.print(

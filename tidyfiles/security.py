@@ -133,60 +133,72 @@ class SystemSecurity:
             # Check if path is a system path
             if cls.is_system_path(path):
                 msg = f"Operation blocked: {path} is a system directory"
-                logger.warning(msg)
+                # Log to file only, don't show in console
+                logger.opt(capture=False).warning(msg)
                 return False, msg
 
             # For nonexistent paths, check parent directory
             parent = path.parent
             if not parent.exists():
                 msg = f"Operation blocked: Parent directory {parent} does not exist"
-                logger.warning(msg)
+                logger.opt(capture=False).warning(msg)
                 return False, msg
 
             if not os.access(parent, os.W_OK):
                 msg = f"Operation blocked: Parent directory {parent} is not writable"
-                logger.warning(msg)
+                logger.opt(capture=False).warning(msg)
                 return False, msg
 
             # Check if path exists and is not writable
             if path.exists():
                 if not os.access(path, os.W_OK):
                     msg = f"Operation blocked: {path} is not writable"
-                    logger.warning(msg)
+                    logger.opt(capture=False).warning(msg)
                     return False, msg
 
                 # Additional check for macOS hidden system files
                 if sys.platform == "darwin" and path.name.startswith("._"):
                     msg = f"Operation blocked: {path} is a macOS system file"
-                    logger.warning(msg)
+                    logger.opt(capture=False).warning(msg)
                     return False, msg
 
                 # Check for Windows special files
                 if sys.platform == "win32" and path.name.startswith("~"):
                     msg = f"Operation blocked: {path} is a Windows special file"
-                    logger.warning(msg)
+                    logger.opt(capture=False).warning(msg)
                     return False, msg
 
-            logger.debug(f"Path {path} is safe")
+            logger.opt(capture=False).debug(f"Path {path} is safe")
             return True, ""
 
         except Exception as e:
             msg = f"Operation blocked: Unable to verify path safety: {str(e)}"
-            logger.error(msg)
+            logger.opt(capture=False).error(msg)
             return False, msg
 
     @classmethod
-    def validate_path(cls, path: Path, raise_error: bool = True) -> None:
+    def validate_path(cls, path: Path, strict: bool = True) -> bool:
         """
-        Validate a path and raise an exception if it's not safe.
+        Validate if a path is safe for operations.
 
         Args:
-            path (Path): The path to validate.
-            raise_error (bool): Whether to raise an exception on unsafe paths.
+            path (Path): The path to validate
+            strict (bool): If True (default), prevents operations in system directories
+
+        Returns:
+            bool: True if path is safe
 
         Raises:
-            ValueError: If the path is not safe and raise_error is True.
+            ValueError: If the path is not safe
         """
         is_safe, reason = cls.is_safe_path(path)
-        if not is_safe and raise_error:
+
+        # If path is unsafe only because it's a system directory and strict mode is off
+        if not is_safe and not strict and cls.is_system_path(path):
+            logger.warning(reason)  # Show warning but continue
+            return True
+
+        if not is_safe:
             raise ValueError(reason)
+
+        return is_safe
