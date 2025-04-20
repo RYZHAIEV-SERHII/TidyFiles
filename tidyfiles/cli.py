@@ -603,27 +603,25 @@ def main(
         help="Directory name for unrecognized files",
         show_default=False,
     ),
-    log_console_output: bool = typer.Option(
-        DEFAULT_SETTINGS["log_console_output_status"],
-        "--log-console/--no-log-console",
+    enable_console_logging: bool = typer.Option(
+        DEFAULT_SETTINGS["enable_console_logging"],
+        "--console-log/--no-console-log",
         help="Enable/disable console logging",
     ),
-    log_file_output: bool = typer.Option(
-        DEFAULT_SETTINGS["log_file_output_status"],
-        "--log-file/--no-log-file",
+    enable_file_logging: bool = typer.Option(
+        DEFAULT_SETTINGS["enable_file_logging"],
+        "--file-log/--no-file-log",
         help="Enable/disable file logging",
     ),
-    log_console_level: str = typer.Option(
-        DEFAULT_SETTINGS["log_console_level"],
-        "--log-console-level",
-        help="Console logging level",
-        show_default=False,
+    console_log_level: str = typer.Option(
+        DEFAULT_SETTINGS["console_log_level"],
+        "--console-log-level",
+        help="Console logging level (DEBUG|INFO|WARNING|ERROR|CRITICAL)",
     ),
-    log_file_level: str = typer.Option(
-        DEFAULT_SETTINGS["log_file_level"],
-        "--log-file-level",
-        help="File logging level",
-        show_default=False,
+    file_log_level: str = typer.Option(
+        DEFAULT_SETTINGS["file_log_level"],
+        "--file-log-level",
+        help="File logging level (DEBUG|INFO|WARNING|ERROR|CRITICAL)",
     ),
     log_file_name: str = typer.Option(
         DEFAULT_SETTINGS["log_file_name"],
@@ -639,6 +637,16 @@ def main(
         "--clear-log",
         help="Clear the log file and exit.",
         is_eager=True,  # Process this before other options/commands
+    ),
+    log_rotation: str = typer.Option(
+        DEFAULT_SETTINGS["log_rotation"],
+        "--log-rotation",
+        help="Log rotation policy (e.g., '50 MB', '1 day')",
+    ),
+    log_retention: str = typer.Option(
+        DEFAULT_SETTINGS["log_retention"],
+        "--log-retention",
+        help="Log retention policy (e.g., '10 days')",
     ),
     settings_file_name: str = typer.Option(
         DEFAULT_SETTINGS["settings_file_name"],
@@ -712,12 +720,15 @@ def main(
             source_dir=source_dir,
             destination_dir=destination_dir,
             unrecognized_file_name=unrecognized_file_name,
-            log_console_output_status=log_console_output,
-            log_file_output_status=log_file_output,
-            log_console_level=log_console_level,
-            log_file_level=log_file_level,
+            enable_console_logging=enable_console_logging,
+            enable_file_logging=enable_file_logging,
+            console_log_level=console_log_level,
+            file_log_level=file_log_level,
             log_file_name=log_file_name,
             log_folder_name=log_folder_name,
+            file_mode="w" if clear_log else "a",
+            log_rotation=log_rotation,
+            log_retention=log_retention,
             settings_file_name=settings_file_name,
             settings_folder_name=settings_folder_name,
         )

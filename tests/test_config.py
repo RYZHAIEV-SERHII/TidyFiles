@@ -50,24 +50,41 @@ def test_get_settings_comprehensive(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir()
 
+    exclude_path = "/tmp/exclude"
+
     # Test with all parameters
     settings = get_settings(
         source_dir=str(source_dir),
         destination_dir=str(source_dir / "dest"),
         cleaning_plan={"documents": [".txt"]},
         unrecognized_file_name="unknown",
-        log_console_output_status=True,
-        log_file_output_status=True,
-        log_console_level="DEBUG",
-        log_file_level="INFO",
+        enable_console_logging=True,
+        enable_file_logging=True,
+        console_log_level="DEBUG",
+        file_log_level="INFO",
         log_file_name="test.log",
         log_folder_name=str(source_dir / "logs"),
-        log_file_mode="w",
+        file_mode="w",
         settings_file_name="settings.toml",
         settings_folder_name=str(source_dir / "config"),
-        excludes=[str("/tmp/exclude")],  # Convert to list of strings
+        excludes=[exclude_path],
     )
-    assert settings["log_console_level"] == "DEBUG"
+
+    # Update assertions to match new key names
+    assert settings["console_log_level"] == "DEBUG"
+    assert settings["file_log_level"] == "INFO"
+    assert settings["enable_console_logging"] is True
+    assert settings["enable_file_logging"] is True
+    assert settings["file_mode"] == "w"
+    assert "log_file_path" in settings
+
+    # Check cleaning plan structure
+    expected_documents_path = (source_dir / "dest" / "documents").resolve()
+    assert settings["cleaning_plan"][expected_documents_path] == [".txt"]
+
+    # Check excludes set contains the resolved path
+    assert isinstance(settings["excludes"], set)
+    assert Path(exclude_path).resolve() in settings["excludes"]
 
     # Test with None settings_folder_name
     settings_none = get_settings(

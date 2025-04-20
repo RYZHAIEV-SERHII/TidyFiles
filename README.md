@@ -293,6 +293,24 @@ TidyFiles maintains comprehensive logs and history:
 - Persistent across program restarts
 - Human-readable format for easy debugging
 
+### Logging Configuration
+
+Configure logging with various options:
+
+```bash
+# Set console log level
+tidyfiles --console-log-level DEBUG
+
+# Disable console logging
+tidyfiles --no-console-log
+
+# Configure log rotation
+tidyfiles --log-rotation "100 MB" --log-retention "30 days"
+
+# Disable file logging
+tidyfiles --no-file-log
+```
+
 ## 🧰️ Contributing
 
 We welcome contributions! Check out our [Contributing Guidelines](CONTRIBUTING.md).

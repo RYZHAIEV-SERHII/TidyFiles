@@ -172,15 +172,16 @@ def test_main_with_complete_execution(tmp_path):
             str(source_dir),
             "--destination-dir",
             str(dest_dir),
-            "--log-console-level",
+            "--console-log-level",  # Updated parameter name
             "DEBUG",
-            "--log-file-level",
+            "--file-log-level",  # Updated parameter name
             "DEBUG",
         ],
     )
 
     assert result.exit_code == 0
-    assert "LIVE MODE" in result.output
+    assert (dest_dir / "documents" / "test.txt").exists()
+    assert (dest_dir / "documents" / "test.pdf").exists()
 
 
 def test_history_command_empty(tmp_path):
