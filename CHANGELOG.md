@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.12.0 (2025-04-20)
+
+### Documentation
+
+- Document the new --force option for CLI safety overrides and update contributing guidelines
+  ([`a9563b2`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/a9563b26234b466ca41584d4abecfffb1f388b30))
+
+### Features
+
+- Add force option to allow operations in system directories with validation control
+  ([`0d882e0`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/0d882e0032d422cdc3e37fb39e45913643d31fb9))
+
+### Refactoring
+
+- Remove redundant logger tests and update path validation test descriptions
+  ([`8325511`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/83255118abc54d79877f6b3da17964990562f044))
+
+- Update logging options and configuration for improved clarity and functionality
+  ([`ca644e1`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/ca644e1ecc15078c0d38212289a0dda70423fe57))
+
+
 ## v0.11.0 (2025-04-20)
 
 ### Bug Fixes
