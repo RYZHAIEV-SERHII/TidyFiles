@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.11.0 (2025-04-20)
+
+### Bug Fixes
+
+- Improve path safety validation and cleanup logic in tests
+  ([`f556b79`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/f556b79f5d0c7ee1576fa4ec991e07aa442a28af))
+
+### Features
+
+- Implement system security checks for path validation in file operations
+  ([`06116e5`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/06116e53aae98703cd64baa86822f7e2cf21be9b))
+
+### Testing
+
+- Add unit tests for system path safety validation and logging
+  ([`73fe64a`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/73fe64a74290662f6c6fe020f8898a8ab6e421ea))
+
+- Enhance system path safety tests with additional edge cases and platform-specific checks
+  ([`5fd1667`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/5fd1667fba74eecd452457253433b6a124533422))
+
+
 ## v0.10.0 (2025-04-16)
 
 ### Features
