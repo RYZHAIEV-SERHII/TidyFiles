@@ -136,9 +136,14 @@ class SystemSecurity:
                 logger.warning(msg)
                 return False, msg
 
-            # Check parent directory permissions first
+            # For nonexistent paths, check parent directory
             parent = path.parent
-            if parent.exists() and not os.access(parent, os.W_OK):
+            if not parent.exists():
+                msg = f"Operation blocked: Parent directory {parent} does not exist"
+                logger.warning(msg)
+                return False, msg
+
+            if not os.access(parent, os.W_OK):
                 msg = f"Operation blocked: Parent directory {parent} is not writable"
                 logger.warning(msg)
                 return False, msg
