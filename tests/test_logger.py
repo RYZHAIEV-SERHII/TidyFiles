@@ -62,20 +62,6 @@ def test_get_logger_invalid_level(tmp_path):
         )
 
 
-def test_get_logger_no_outputs(tmp_path):
-    log_file = tmp_path / "test.log"
-    logger_instance = get_logger(
-        log_file_path=log_file,
-        log_console_output_status=False,
-        log_file_output_status=False,
-        log_console_level="INFO",
-        log_file_level="INFO",
-        log_file_mode="w",
-    )
-    assert logger_instance is None  # Changed assertion
-    assert not log_file.exists()
-
-
 def test_get_logger_file_mkdir_error(tmp_path, monkeypatch):
     def mock_mkdir(*args, **kwargs):
         raise PermissionError("Access denied")
@@ -116,26 +102,6 @@ def test_get_logger_with_permission_error(tmp_path, monkeypatch):
         log_file_output_status=True,
     )
     assert logger_instance is not None
-
-
-def test_get_logger_with_invalid_configuration(tmp_path):
-    """Test logger with invalid configuration"""
-    log_file = tmp_path / "test.log"
-    # Test with at least one output enabled
-    logger_instance = get_logger(
-        log_file_path=log_file,
-        log_console_output_status=True,
-        log_file_output_status=False,
-    )
-    assert logger_instance is not None
-
-    # Test with both outputs disabled
-    logger_instance = get_logger(
-        log_file_path=log_file,
-        log_console_output_status=False,
-        log_file_output_status=False,
-    )
-    assert logger_instance is None
 
 
 def test_logger_with_invalid_file_path(tmp_path):

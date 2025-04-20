@@ -96,9 +96,9 @@ def test_parent_directory_permissions(tmp_path):
 
 
 def test_validate_path_without_raising(system_path):
-    """Test validate_path with raise_error=False."""
-    # Should not raise an exception
-    SystemSecurity.validate_path(system_path, raise_error=False)
+    """Test validate_path with strict=False."""
+    # Should not raise an exception when strict is False
+    SystemSecurity.validate_path(system_path, strict=False)
 
 
 def test_system_paths_all_platforms():
