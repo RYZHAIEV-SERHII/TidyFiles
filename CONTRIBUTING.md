@@ -105,6 +105,16 @@ First off, thank you for considering contributing to TidyFiles! 🎉
 
 ---
 
+## Contributing Features Impacting CLI Safety (`--force` Option)
+
+- When submitting features that affect CLI safety or security (such as `--force`):
+    - Update usage documentation in the `README.md` and CLI help text, ensuring high-visibility warnings are included for potentially dangerous operations.
+    - Add or update tests for all dangerous and edge cases, especially where safety checks may be bypassed by the user (e.g., forced operation in system directories).
+    - Clearly comment in code and pull requests the rationale for force logic, how it's made safe, and how user actions are logged for audit purposes.
+    - Update the changelog to describe the new flag or risk and mitigation strategies.
+
+---
+
 ## Dependency Groups
 
 - **Core**: `uv sync`

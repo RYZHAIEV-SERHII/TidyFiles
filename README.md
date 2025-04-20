@@ -37,6 +37,8 @@ It intelligently organizes files by type and keeps logs of all the sorting magic
 - **Detailed Logging**: Track all operations with console and file logging
 - **Rich CLI Interface**: Beautiful command-line interface with progress indicators
 - **Safe Operations**: Maintains file integrity during organization
+- **Optional Force Mode (`--force`)**: Allow normally restricted actions (e.g., operations in protected/system directories, or overwriting files) by explicitly specifying `--force` on the command line. Use with caution for non-reversible actions.
+
 
 ## 🔧 Tech Stack
 
@@ -129,6 +131,14 @@ tidyfiles undo --session 3
 ```bash
 tidyfiles undo --session 3 --number 2
 ```
+
+* ###### Force operation in protected/system directories *(Dangerous!)*
+
+```bash
+tidyfiles --source-dir /some/protected/folder --force
+```
+
+- By default, TidyFiles will block potentially unsafe operations, such as in system directories or for non-writable files. The `--force` flag overrides this safety check. **Use with caution.**
 
 ---
 
