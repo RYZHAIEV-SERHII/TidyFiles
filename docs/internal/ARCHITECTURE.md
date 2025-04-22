@@ -55,10 +55,7 @@
 
 ### CLI Layer (`cli.py`)
 
-- Handles command-line arguments using Typer, including the safety override option `--force` (boolean flag).
-    - When `--force` is provided, validation routines will skip some protective checks and allow the requested operation, even if it would otherwise be blocked for safety.
-    - Command help text clearly describes the risks of using `--force`.
-    - All force-driven actions are logged to both console and file to ensure auditability.
+- Handles command-line arguments using Typer
 - Input validation and command routing
 - Provides rich terminal output using Rich
 - Main entry point via `tidyfiles` command
