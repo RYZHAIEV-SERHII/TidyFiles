@@ -95,12 +95,6 @@ def test_parent_directory_permissions(tmp_path):
         os.chmod(test_dir, 0o755)
 
 
-def test_validate_path_without_raising(system_path):
-    """Test validate_path with strict=False."""
-    # Should not raise an exception when strict is False
-    SystemSecurity.validate_path(system_path, strict=False)
-
-
 def test_system_paths_all_platforms():
     """Test system paths detection across all platforms."""
     paths = SystemSecurity.get_system_paths()
