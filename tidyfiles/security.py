@@ -177,13 +177,13 @@ class SystemSecurity:
             return False, msg
 
     @classmethod
-    def validate_path(cls, path: Path, strict: bool = True) -> bool:
+    def validate_path(cls, path: Path, raise_error: bool = True) -> bool:
         """
         Validate if a path is safe for operations.
 
         Args:
             path (Path): The path to validate
-            strict (bool): If True (default), prevents operations in system directories
+            raise_error (bool): Whether to raise an exception on unsafe paths.
 
         Returns:
             bool: True if path is safe
@@ -192,13 +192,7 @@ class SystemSecurity:
             ValueError: If the path is not safe
         """
         is_safe, reason = cls.is_safe_path(path)
-
-        # If path is unsafe only because it's a system directory and strict mode is off
-        if not is_safe and not strict and cls.is_system_path(path):
-            logger.warning(reason)  # Show warning but continue
-            return True
-
-        if not is_safe:
+        if not is_safe and raise_error:
             raise ValueError(reason)
 
         return is_safe

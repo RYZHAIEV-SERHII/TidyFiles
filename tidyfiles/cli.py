@@ -591,12 +591,6 @@ def main(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Run in dry-run mode (no actual changes)"
     ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Allow operations in system directories (use with caution)",
-    ),
     unrecognized_file_name: str = typer.Option(
         DEFAULT_SETTINGS["unrecognized_file_name"],
         "--unrecognized-dir",
@@ -769,7 +763,6 @@ def main(
                 unrecognized_file=settings["unrecognized_file"],
                 logger=logger,
                 excludes=settings.get("excludes", set()),
-                strict_validation=not force,  # Only disable strict validation if force flag is used
             )
         except ValueError as e:
             console.print(f"\n[bold red]Error:[/bold red] {str(e)}")

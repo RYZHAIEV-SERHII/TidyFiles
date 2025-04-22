@@ -90,7 +90,6 @@ def create_plans(
     cleaning_plan: Dict[str, Any],
     unrecognized_file: Path,
     logger: Optional[loguru.logger] = None,
-    strict_validation: bool = True,
     **kwargs,
 ) -> Tuple[List[Tuple[Path, Path]], List[Path], Dict[str, int]]:
     """Generate plans for file transfers and directory deletions.
@@ -104,7 +103,6 @@ def create_plans(
         cleaning_plan (Dict[str, Any]): Configuration mapping file extensions to destination folders.
         unrecognized_file (Path): The base path for files with unrecognized extensions.
         logger (Optional[loguru.logger]): Logger instance for logging operations.
-        strict_validation (bool): If True (default), prevents operations in system directories
         **kwargs: Optional arguments. Supports 'excludes' (Set[Path]): Paths to ignore.
 
     Returns:
@@ -114,14 +112,14 @@ def create_plans(
             - statistics dictionary with total counts
     """
     # Validate source directory
-    SystemSecurity.validate_path(source_dir, strict=strict_validation)
+    SystemSecurity.validate_path(source_dir)
 
     # Validate all target directories in cleaning plan
     for target_dir in cleaning_plan.keys():
-        SystemSecurity.validate_path(Path(target_dir), strict=strict_validation)
+        SystemSecurity.validate_path(Path(target_dir))
 
     # Validate unrecognized file directory
-    SystemSecurity.validate_path(unrecognized_file, strict=strict_validation)
+    SystemSecurity.validate_path(unrecognized_file)
 
     transfer_plan = []
     delete_plan = []
@@ -182,7 +180,6 @@ def transfer_files(
     history: Optional[OperationHistory] = None,
     progress: Optional[ProgressBarProtocol] = None,
     task_id: Optional[int] = None,
-    strict_validation: bool = True,
 ) -> Tuple[int, int]:
     """
     Move files to designated folders based on sorting plan.
@@ -201,7 +198,6 @@ def transfer_files(
         history (Optional[OperationHistory]): History tracker for operations.
         progress (Optional[ProgressBarProtocol]): Progress bar instance for displaying progress.
         task_id (Optional[int]): Task ID for the progress bar.
-        strict_validation (bool): If True (default), prevents operations in system directories
 
     Returns:
         Tuple[int, int]: A tuple containing the number of files transferred and
@@ -209,8 +205,8 @@ def transfer_files(
     """
     # Validate all paths in transfer plan
     for source, destination in transfer_plan:
-        SystemSecurity.validate_path(source, strict=strict_validation)
-        SystemSecurity.validate_path(destination.parent, strict=strict_validation)
+        SystemSecurity.validate_path(source)
+        SystemSecurity.validate_path(destination.parent)
 
     num_transferred_files = 0
     operations = []
@@ -301,7 +297,6 @@ def delete_dirs(
     history: Optional[OperationHistory] = None,
     progress: Optional[ProgressBarProtocol] = None,
     task_id: Optional[int] = None,
-    strict_validation: bool = True,
 ) -> Tuple[int, int]:
     """
     Delete empty directories after moving files.
@@ -315,7 +310,6 @@ def delete_dirs(
         history (Optional[OperationHistory]): History tracker for operations.
         progress (Optional[ProgressBarProtocol]): Progress bar instance for displaying progress.
         task_id (Optional[int]): Task ID for the progress bar.
-        strict_validation (bool): If True (default), prevents operations in system directories
 
     Returns:
         Tuple[int, int]: A tuple containing the number of directories deleted and
@@ -323,7 +317,7 @@ def delete_dirs(
     """
     # Validate all paths in delete plan
     for directory in delete_plan:
-        SystemSecurity.validate_path(directory, strict=strict_validation)
+        SystemSecurity.validate_path(directory)
 
     num_deleted_directories = 0
     operations = []
