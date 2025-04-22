@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.12.1 (2025-04-22)
+
+### Bug Fixes
+
+- Remove --force option flag due to security reasons and update related logic
+  ([`2c5ab15`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/2c5ab1566d2402cbc8538a99def499282a9ea01a))
+
+### Refactoring
+
+- Remove documentation related to the --force option for CLI safety
+  ([`44db7fb`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/44db7fb734aba8824bd71f04145df877149e01e1))
+
+- Remove redundant test related to --force option
+  ([`d8063b2`](https://github.com/RYZHAIEV-SERHII/TidyFiles/commit/d8063b2370896f37fbe4cc320992e59b19b7b35a))
+
+
 ## v0.12.0 (2025-04-20)
 
 ### Documentation
